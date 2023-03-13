@@ -42,6 +42,29 @@ app.get('/createclienttable', (req, res) => {
     });
 });
 
-app.listen('3000', ()=>{
-    console.log('Server started on port 3000');
-});
+
+// jQuery code to populate the dropdown list with chaines hotellieres
+$(document).ready(function() {
+    // Get the list of chaines hotellieres from the server using AJAX
+    $.get('/api/chaineshotellieres', function(data) {
+      // Loop through the array of chaines hotellieres and append them to the dropdown list
+      data.forEach(function(chainehoteliere) {
+        $('#chainehoteliere-dropdown').append($('<option>', {
+          value: chainehoteliere.idchaine,
+          text: chainehoteliere.nom
+        }));
+      });
+    });
+    
+    // Handle form submission
+    $('#chainehoteliere-form').submit(function(event) {
+      event.preventDefault(); // prevent the default form submission
+      
+      // Get the selected chainehoteliere ID from the dropdown list
+      var chainehoteliereId = $('#chainehoteliere-dropdown').val();
+      
+      // Do something with the selected chainehoteliere ID, e.g. redirect to a page with more details
+      window.location.href = '/chainehoteliere/' + chainehoteliereId;
+    });
+  });
+  

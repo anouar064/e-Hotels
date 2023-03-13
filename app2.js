@@ -101,6 +101,28 @@ function initTable() {
         PRIMARY KEY (idcomodite),
         FOREIGN KEY (idchambre) REFERENCES chambre(idChambre)
       )`;
+
+    const createEmployeTable = `CREATE TABLE IF NOT EXISTS employe (
+        NASemploye INTEGER PRIMARY KEY,
+        prenom VARCHAR(255),
+        nomFamille VARCHAR(255),
+        rue VARCHAR(255),
+        codePostal VARCHAR(10),
+        ville VARCHAR(255),
+        idhotel INTEGER,
+        FOREIGN KEY (idhotel) REFERENCES hotel(idhotel)
+      )`;
+      
+    const createRoleTable = `CREATE TABLE IF NOT EXISTS role (
+        idrole INTEGER PRIMARY KEY,
+        nom VARCHAR(255),
+        salaireDebut DECIMAL(10, 2),
+        idhotel INTEGER,
+        NASemploye INTEGER,
+        FOREIGN KEY (idhotel) REFERENCES hotel(idhotel),
+        FOREIGN KEY (NASemploye) REFERENCES employe(NASemploye)
+      )`;
+      
       
       
     db.query(createChainehoteliereTable, (err) => {
@@ -142,6 +164,32 @@ function initTable() {
         console.log('> Table Commodite created or already exists');
     });
 
+
+    db.query(createEmployeTable, (err) => {
+        if (err) {
+          console.error('Error creating Employe table:', err);
+          return;
+        }
+        console.log('> Table Employe created or already exists');
+      });
+      
+      db.query(createRoleTable, (err) => {
+        if (err) {
+          console.error('Error creating Role table:', err);
+          return;
+        }
+        console.log('> Table Role created or already exists');
+      });
+      
+
+
+
+
+
+
+
+
+
 }
 
 
@@ -170,6 +218,18 @@ function addChainehoteliereAndBureau(nom, nombrehotel, rue, codePostal, ville, e
   }
 
 
+function addBureauToHotel(idhotel, rue, codePostal, ville, email, numeroTel) {
+    const insertBureauQuery = 'INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, (SELECT idchaine FROM chainehoteliere WHERE idchaine  = ?))';
+    db.query(insertBureauQuery, [rue, codePostal, ville, email, numeroTel, idhotel], (err, results) => {
+      if (err) {
+        console.error('Error adding record to Bureau:', err);
+        return;
+      }
+      console.log(`> New record added to Bureau with ID ${results.insertId}`);
+    });
+  }
+  
+
 function getChainesAndBureaux() {
     return new Promise((resolve, reject) => {
       const sql = `
@@ -186,6 +246,29 @@ function getChainesAndBureaux() {
     });
   }
 
+  function getAllChainesHotellieres() {
+    return new Promise((resolve, reject) => {
+        const query = 'SELECT * FROM chainehoteliere';
+        db.query(query, (err, results) => {
+            if (err) {
+                console.error('Error getting chaines hotellieres:', err);
+                reject(err);
+                return;
+            }
+            const chaines = [];
+            results.forEach((chaine) => {
+                chaines.push({
+                    idchaine:chaine.idchaine,
+                    nom: chaine.nom,
+                    nombrehotel: chaine.nombrehotel
+                })
+            });
+            resolve(chaines);
+        });
+    });
+}
+
+  
 
 
 initDB();
@@ -202,7 +285,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     next();
   });
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: false  }));
 app.use(bodyParser.json());
 
 app.listen('3000', ()=>{
@@ -288,4 +371,50 @@ app.post('/add-chainehoteliere-bureau', (req, res) => {
     });
   });
   
+
+
+// Route pour la soumission du formulaire de connexion
+app.post('/login', (req, res) => {
+    const email = req.body.email;
+    const password = req.body.password;
+  
+    // Affichage des données dans la console
+    console.log(`Email: ${email}, Password: ${password}`);
+  
+    // Réponse de la requête
+    res.send('Connexion réussie !');
+  });
+
+
+  app.get('/chaines-hotellieres', (req, res) => {
+    getAllChainesHotellieres()
+      .then((chaines) => {
+        res.json( chaines );
+      })
+      .catch((err) => {
+        console.error('Erreur lors de la récupération des chaines hotellieres :', err);
+        res.status(500).send('Erreur lors de la récupération des chaines hotellieres.');
+      });
+  });
+  
+
+  app.post('/bureau', (req, res) => {
+    console.log(req.body)
+    const data=req.body
+    
+
+    const { nomBureau, rueBureau, codePostalBureau, villeBureau, emailBureau, numeroTelBureau, idHotel } = req.body;
+    console.log([ data.chainehoteliere, data.rue, data.codePostal, data.ville, data.email, data.numeroTel ])
+    res.status(200).send('Bureau added to hotel');
+    addBureauToHotel(data.chainehoteliere, data.rue, data.codePostal, data.ville, data.email, data.numeroTel)
+    /*
+    addBureauToHotel(nomBureau, rueBureau, codePostalBureau, villeBureau, emailBureau, numeroTelBureau, idHotel, (err, result) => {
+      if (err) {
+        console.error('Error adding bureau to hotel:', err);
+        res.status(500).send('Error adding bureau to hotel');
+        return;
+      }
+      res.status(200).send('Bureau added to hotel');
+    });*/
+  });
   

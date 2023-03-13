@@ -45,6 +45,41 @@
       <button   class="btn btn-primary m-1 randomBtn">Random</button>
 
     </div>
+    <div class="container">
+<div class="row justify-content-center align-items-center g-2">
+<!-- HTML Form -->
+<form id="addbureauchainehoteliere-form">
+    <div class="form-group">
+      <label for="chainehoteliere-dropdown">Sélectionnez une chaîne hôtelière :</label>
+      <select class="form-control" id="chainehoteliere-dropdown" name="chainehoteliere"></select>
+    </div>
+    <div class="form-group">
+      <label for="rue-input">Rue :</label>
+      <input type="text" class="form-control" id="rue-input" name="rue" required>
+    </div>
+    <div class="form-group">
+      <label for="codepostal-input">Code postal :</label>
+      <input type="text" class="form-control" id="codepostal-input" name="codePostal" required>
+    </div>
+    <div class="form-group">
+      <label for="villebureauinput">Ville :</label>
+      <input type="text" class="form-control villebureauinput" id="villebureauinput" name="ville" required>
+    </div>
+    <div class="form-group">
+      <label for="email-input">Email :</label>
+      <input type="email" class="form-control" id="email-input" name="email" required>
+    </div>
+    <div class="form-group">
+      <label for="numerotel-input">Numéro de téléphone :</label>
+      <input type="tel" class="form-control" id="numerotel-input" name="numeroTel" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+  <button   class="btn btn-primary m-1 randomBtnbureau">Random</button>
+  
+  
+</div>    </div>
   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
@@ -108,9 +143,44 @@
 
           
         });
-
+        
 
       });
+
+    });
+    $(document).ready(() => {
+      $('.randomBtnbureau').click(() => {
+        // Appelle l'API Random User pour générer des données aléatoires
+        $.ajax({
+          url: 'https://randomuser.me/api/',
+          dataType: 'json',
+          success: (data) => {
+            const randomUser = data.results[0];
+            //console.log(randomUser)
+            // Remplit les champs du formulaire avec les données aléatoires
+            $('#nomChaine').val(randomUser.name.first + ' ' + randomUser.name.last);
+            $('#rue-input').val(randomUser.location.street.number + ' ' + randomUser.location.street.name);
+            $('#codepostal-input').val(randomUser.location.postcode);
+            $('#villebureauinput').val(randomUser.location.city);
+            $('#email-input').val(randomUser.email);
+            $('#numerotel-input').val(randomUser.phone);
+          },
+          error: (err) => {
+            console.error('Erreur lors de l\'appel à l\'API :', err);
+            alert('Erreur lors de la génération de données aléatoires.');
+          }
+
+
+
+
+
+
+
+          
+        });
+
+      });
+
     });
   </script>
     <div class="container mt-5">
@@ -178,9 +248,50 @@
 
   setInterval(() => {
     executeScript();
-  }, 2000);
+  }, 200000);
 
 });
+
+// jQuery code to populate the dropdown list with chaines hotellieres
+$(document).ready(function() {
+  // Get the list of chaines hotellieres from the server using AJAX
+  $.get('http://localhost:3000/chaines-hotellieres', function(data) {
+    // Loop through the array of chaines hotellieres and append them to the dropdown list
+
+    for (var i = 0; i < data.length; i++) {
+      var chainehoteliere = data[i];
+      $('#chainehoteliere-dropdown').append($('<option>', {
+        value: chainehoteliere.idchaine,
+        text: chainehoteliere.nom
+      }));
+    }
+  });
+  
+  // Handle form submission
+  $(document).ready(() => {
+  $('#addbureauchainehoteliere-form').submit((event) => {
+    event.preventDefault(); // Empêche le formulaire de se soumettre normalement
+
+    $.post('http://localhost:3000/bureau', {
+      chainehoteliere: $('#chainehoteliere-dropdown').val(),
+      rue: $('#rue-input').val(),
+      codePostal: $('#codepostal-input').val(),
+      ville: $('#villebureauinput').val(),
+      email: $('#email-input').val(),
+      numeroTel: $('#numerotel-input').val()
+    }).done((data) => {
+        console.log(data)
+      alert('Ajout effectué !');
+    }).fail((err) => {
+      console.error('Erreur lors de l\'ajout :', err);
+      alert('Erreur lors de l\'ajout.');
+    });
+  });
+});
+
+
+});
+
 
     </script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
