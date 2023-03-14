@@ -76,7 +76,7 @@
 
     <button type="submit" class="btn btn-primary">Submit</button>
   </form>
-  <button   class="btn btn-primary m-1 randomBtnbureau">Random</button>
+  <button   class="btn btn-primary m-1 randomBtnbureau" id="randomBtnbureau">Random</button>
   
   
 </div>    </div>
@@ -149,7 +149,7 @@
 
     });
     $(document).ready(() => {
-      $('.randomBtnbureau').click(() => {
+      $('#randomBtnbureau').click(() => {
         // Appelle l'API Random User pour générer des données aléatoires
         $.ajax({
           url: 'https://randomuser.me/api/',
