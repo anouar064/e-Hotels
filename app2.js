@@ -2,6 +2,8 @@ const express = require('express');
 const mysql = require('mysql');
 const bodyParser = require('body-parser');
 const { faker } = require('@faker-js/faker');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
 
 var db = mysql.createConnection({
   host: 'localhost',
@@ -612,7 +614,7 @@ function populateDb() {
 //=========== MAIN ================
 initDB();
 initTable();
-populateDb()
+//populateDb()
 
 // ============ API CONFIG ===================
 
@@ -626,6 +628,7 @@ app.use((req, res, next) => {
 });
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(cors());
 
 app.listen('3000', () => {
   console.log('Server started on port 3000');
@@ -876,12 +879,100 @@ app.post('/bureau', (req, res) => {
 });
 
 
+const users = {};
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  console.log(req.body)
+  // Check if user exists and password is correct in the database
+  db.query('SELECT * FROM employe WHERE username = ? AND password = ?', [username, password], (err, result) => {
+    if (err || result.length === 0) {
+      return res.status(401).send('Username or password incorrect');
+    }
+    const token = generateToken(username);
+    // Add user to dictionary with token as key and username as value
+    users[token] = username;
+    res.json({ token });
+  });
+});
+
+function generateToken(username) {
+  // Generate a random token (in this case a UUIDv4) to use as the key in the users dictionary
+  const uuidv4 = require('uuid').v4;
+  return uuidv4();
+}
 
 
+// Endpoint pour la requête username
+app.get('/api/mainProfileInfos', (req, res) => {
+  const token = req.headers.authorization;
+  console.log(token)
+  console.log(users)
+  const username = users[token];
+  if (!username) {
+    return res.status(401).send('Invalid token');
+  }
 
+  const query = `SELECT employe.NASemploye, employe.prenom AS employe_prenom, employe.nomFamille AS employe_nomFamille, employe.rue AS employe_rue, employe.codePostal AS employe_codePostal, employe.ville AS employe_ville, employe.username AS employe_username, employe.password AS employe_password, 
+  hotel.idhotel, hotel.nom AS hotel_nom, hotel.classement, hotel.nombrechambres, hotel.rue AS hotel_rue, hotel.codePostal AS hotel_codePostal, hotel.ville AS hotel_ville, hotel.email AS hotel_email, hotel.numeroTel AS hotel_numeroTel, 
+  chainehoteliere.idchaine, chainehoteliere.nom AS chainehoteliere_nom, chainehoteliere.nombrehotel AS chainehoteliere_nombrehotel, 
+  bureau.idBureau, bureau.rue AS bureau_rue, bureau.codePostal AS bureau_codePostal, bureau.ville AS bureau_ville, bureau.email AS bureau_email, bureau.numeroTel AS bureau_numeroTel 
+FROM employe
+JOIN hotel ON employe.idhotel = hotel.idhotel
+JOIN chainehoteliere ON hotel.idchaine = chainehoteliere.idchaine
+JOIN bureau ON chainehoteliere.idchaine = bureau.idchaine
+WHERE employe.username = '${username}'`;
 
+  db.query(query, (err, result) => {
+    if (err || result.length === 0) {
+      console.error('Error executing main profile query:', err);
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
 
-
+    const user = result[0];
+    //console.log(result)
+    const userInfo = {
+      employe: {
+        username: user.employe_username,
+        password: user.employe_password,
+        prenom: user.employe_prenom,
+        nomFamille: user.employe_nomFamille,
+        rue: user.employe_rue,
+        codePostal: user.employe_codePostal,
+        ville: user.employe_ville,
+        NASemploye: user.NASemploye,
+        idhotel: user.idhotel
+      },
+      hotel: {
+        nom: user.hotel_nom,
+        classement: user.classement,
+        nombrechambres: user.nombrechambres,
+        rue: user.hotel_rue,
+        codePostal: user.hotel_codePostal,
+        ville: user.hotel_ville,
+        email: user.hotel_email,
+        numeroTel: user.hotel_numeroTel,
+        idchaine: user.idchaine
+      },
+      chainehoteliere: {
+        nom: user.chainehoteliere_nom,
+        nombrehotel: user.chainehoteliere_nombrehotel
+      },
+      bureaux: result.map(row => ({
+        idBureau: row.idBureau,
+        rue: row.bureau_rue,
+        codePostal: row.bureau_codePostal,
+        ville: row.bureau_ville,
+        email: row.bureau_email,
+        numeroTel: row.bureau_numeroTel
+      }))
+    };
+    
+    //console.log(userInfo)
+    res.json(userInfo);
+  });
+});
 
 //================================= TEST : A ENLEVER MB3D ============
 
