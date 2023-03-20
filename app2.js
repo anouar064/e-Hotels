@@ -119,7 +119,7 @@ function initTable() {
       )`;
 
   const createRoleTable = `CREATE TABLE IF NOT EXISTS role (
-        idrole INTEGER PRIMARY KEY,
+        idrole INTEGER PRIMARY KEY AUTO_INCREMENT,
         nom VARCHAR(255),
         salaireDebut DECIMAL(10, 2),
         idhotel INTEGER,
@@ -128,8 +128,51 @@ function initTable() {
         FOREIGN KEY (NASemploye) REFERENCES employe(NASemploye)
       )`;
 
+      const createLoueTable = `CREATE TABLE IF NOT EXISTS loue (
+        idLocation INTEGER AUTO_INCREMENT, 
+        idChambre INTEGER,
+        NASclient VARCHAR(255),
+        NASemploye VARCHAR(255),
+        checkIndDate DATE,
+        checkOutDate DATE,
+        paiement VARCHAR(255),
+        PRIMARY KEY (idLocation),
+        archive BOOLEAN,
+        FOREIGN KEY (idChambre) REFERENCES chambre(idChambre),
+        FOREIGN KEY (NASclient) REFERENCES client(NASclient),
+        FOREIGN KEY (NASemploye) REFERENCES employe(NASemploye)
+      )`;
+      
 
+      const createClientTable = `CREATE TABLE IF NOT EXISTS client (
+        NASclient VARCHAR(255) PRIMARY KEY,
+        prenom VARCHAR(255),
+        nomFamille VARCHAR(255),
+        rue VARCHAR(255),
+        codePostal VARCHAR(10),
+        ville VARCHAR(255),
+        dateEnregistrement DATE,
+        username VARCHAR(255) ,
+        password VARCHAR(255)
+      )`;
+      
+      
+   
 
+      const createReserveTable = `CREATE TABLE IF NOT EXISTS reserve (
+        idReservation INTEGER AUTO_INCREMENT,
+        idChambre INTEGER,
+        NASclient VARCHAR(255),
+        checkInDate DATE,
+        checkOutDate DATE,
+        PRIMARY KEY (idReservation),
+        FOREIGN KEY (idChambre) REFERENCES chambre(idChambre),
+        FOREIGN KEY (NASclient) REFERENCES client(NASclient)
+      )`;
+      
+      
+
+      
   db.query(createChainehoteliereTable, (err) => {
     if (err) {
       console.error('Error creating chainehoteliere table:', err);
@@ -186,10 +229,32 @@ function initTable() {
     console.log('> Table Role created or already exists');
   });
 
+  db.query(createLoueTable, (err) => {
+    if (err) {
+      console.error('Error creating loue table:', err);
+      return;
+    }
+    console.log('> Table loue created or already exists');
+  });
+  
+  db.query(createReserveTable, (err) => {
+    if (err) {
+      console.error('Error creating reserve table:', err);
+      return;
+    }
+    console.log('> Table reserve created or already exists');
+  });
+  
 
 
-
-
+  db.query(createClientTable, (err) => {
+    if (err) {
+      console.error('Error creating client table:', err);
+      return;
+    }
+    console.log('> Table client created or already exists');
+  });
+  
 
 
 
@@ -465,7 +530,8 @@ function getEmployeeByUsernameAndPassword(username, password) {
 
 
 function createRandomChainesHoteleres() {
-  const nombreChainesHoteleres = faker.datatype.number({ min: 5, max: 10 });
+  //const nombreChainesHoteleres = faker.datatype.number({ min: 5, max: 10 });
+  const nombreChainesHoteleres = 5
 
   for (let i = 0; i < nombreChainesHoteleres; i++) {
     const nomChaineHoteliere = faker.company.name();
@@ -530,7 +596,7 @@ function populateHotels() {
     console.log(`> Found ${result.length} chaines hoteleres.`);
 
     result.forEach((chaineHoteliere) => {
-      const nombreHotels = faker.datatype.number({ min: 40, max: 70 });
+      const nombreHotels = faker.datatype.number({ min: 15, max: 30 });
       console.log(`> Generating ${nombreHotels} hotels for chainehoteliere "${chaineHoteliere.nom}"`);
 
       for (let i = 0; i < nombreHotels; i++) {
@@ -551,7 +617,7 @@ function populateHotels() {
 }
 
 function populateEmployees() {
-  const hotelsQuery = 'SELECT * FROM hotel ORDER BY RAND() LIMIT 10';
+  const hotelsQuery = 'SELECT * FROM hotel';
 
   db.query(hotelsQuery, (err, hotels) => {
     if (err) {
@@ -565,7 +631,7 @@ function populateEmployees() {
 
       for (let j = 0; j < numEmployees; j++) {
         const employee = {
-          NAS: faker.random.alphaNumeric(9),
+          NAS: faker.random.numeric(9),
           prenom: faker.name.firstName(),
           nomFamille: faker.name.lastName(),
           rue: faker.address.streetAddress(),
@@ -608,6 +674,274 @@ function populateDb() {
   populateEmployees();
 }
 
+function checkRolesForEmployees() {
+  const roles = [
+    'Réceptionniste',
+    'Responsable des réservations',
+    'Personnel entretien et de maintenance',
+    'Personnel de ménage',
+    'Chef cuisinier et personnel de cuisine',
+    'Serveur ou serveuse',
+    'Barman ou barmaid',
+    'Concierge',
+    'Agent de sécurité',
+    'Responsable des finances et de la comptabilité',
+    'Responsable des ressources humaines',
+    'Responsable des opérations',
+    'Responsable des ventes et du marketing',
+    'Responsable des événements',
+    'Responsable des relations avec les clients'
+  ];
+
+  const query = `
+    SELECT e.NASemploye, h.idhotel
+    FROM employe e
+    JOIN hotel h ON e.idhotel = h.idhotel
+    WHERE NOT EXISTS (
+      SELECT r.idrole
+      FROM role r
+      WHERE r.NASemploye = e.NASemploye
+    )`;
+
+  db.query(query, (err, result) => {
+    if (err) {
+      console.error('Error checking roles for employees:', err);
+      return;
+    }
+
+    // For each employee without a role
+    result.forEach((row) => {
+      const employeeNas = row.NASemploye;
+      const hotelId = row.idhotel;
+
+      // Select a random role from the roles array
+      const randomRole = roles[Math.floor(Math.random() * roles.length)];
+
+      // Create the role for the employee
+      const createRoleQuery = `
+        INSERT INTO role (nom, salaireDebut, idhotel, NASemploye)
+        VALUES ('${randomRole}', ${Math.floor(Math.random() * (60000 - 40000 + 1)) + 40000}.00, ${hotelId}, '${employeeNas}')`;
+
+      db.query(createRoleQuery, (err) => {
+        if (err) {
+          console.error('Error creating role:', err);
+          return;
+        }
+
+        console.log(`Created role ${randomRole} for employee ${employeeNas}`);
+      });
+    });
+  });
+}
+
+function assignHotelManagers() {
+  const selectHotelsQuery = 'SELECT * FROM hotel';
+  const selectEmployeesQuery = 'SELECT * FROM employe WHERE idhotel = ?';
+  const insertRoleQuery = 'INSERT INTO role (nom, salaireDebut, idhotel, NASemploye) VALUES (?, ?, ?, ?)';
+
+  db.query(selectHotelsQuery, (err, hotels) => {
+    if (err) {
+      console.error('Error selecting hotels:', err);
+      return;
+    }
+
+    hotels.forEach((hotel) => {
+      const { idhotel } = hotel;
+
+      // Check if hotel has a manager
+      const selectManagerQuery = 'SELECT * FROM role WHERE idhotel = ? AND nom = "Manager"';
+      db.query(selectManagerQuery, [idhotel], (err, manager) => {
+        if (err) {
+          console.error(`Error selecting manager for hotel ${idhotel}:`, err);
+          return;
+        }
+
+        // If hotel doesn't have a manager, assign one to a random employee
+        if (manager.length === 0) {
+          db.query(selectEmployeesQuery, [idhotel], (err, employees) => {
+            if (err) {
+              console.error(`Error selecting employees for hotel ${idhotel}:`, err);
+              return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * employees.length);
+            //console.log(employees)
+
+            const employee = employees[randomIndex];
+
+            // Insert manager role for employee
+            const { NASemploye } = employee;
+            const managerRole = ['Manager', 50000, idhotel, NASemploye];
+            db.query(insertRoleQuery, managerRole, (err) => {
+              if (err) {
+                console.error(`Error inserting manager role for employee ${NASemploye}:`, err);
+                return;
+              }
+              console.log(`Manager role assigned to employee ${NASemploye} for hotel ${idhotel}`);
+            });
+          });
+        }
+      });
+    });
+  });
+}
+
+
+function addRoomsAndCommodities() {
+  const hotelsQuery = 'SELECT idhotel FROM hotel';
+  db.query(hotelsQuery, (err, results) => {
+    if (err) {
+      console.error('Error selecting hotels:', err);
+      return;
+    }
+
+    console.log('> Selected hotels for adding rooms and commodities');
+
+    results.forEach((hotel) => {
+      const roomCount = faker.datatype.number({ min: 80, max: 140 });
+      const roomInsertQuery = 'INSERT INTO chambre (prix, capaciteChambre, disponible, vue, etendue, problemechambre, idHotel) VALUES (?, ?, ?, ?, ?, ?, ?)';
+      const commodityInsertQuery = 'INSERT INTO commodite (nom, idchambre) VALUES (?, ?)';
+
+      console.log(`> Adding ${roomCount} rooms for hotel ${hotel.idhotel}`);
+
+      for (let i = 0; i < roomCount; i++) {
+        const roomData = [
+          faker.datatype.number({ min: 50, max: 300 }), // prix
+          faker.datatype.number({ min: 1, max: 6 }), // capaciteChambre
+          faker.datatype.boolean(), // disponible
+          faker.lorem.words(2), // vue
+          faker.lorem.words(2), // etendue
+          faker.datatype.boolean(), // problemechambre
+          hotel.idhotel // idHotel
+        ];
+
+        db.query(roomInsertQuery, roomData, (err, results) => {
+          if (err) {
+            console.error('Error inserting room:', err);
+            return;
+          }
+
+          const roomId = results.insertId;
+
+          // Ajouter des commodités pour chaque chambre
+          const commodityCount = faker.datatype.number({ min: 0, max: 5 });
+
+          for (let j = 0; j < commodityCount; j++) {
+            const commodityData = [
+              faker.lorem.words(2), // nom
+              roomId // idchambre
+            ];
+
+            db.query(commodityInsertQuery, commodityData, (err) => {
+              if (err) {
+                console.error('Error inserting commodity:', err);
+                return;
+              }
+            });
+          }
+        });
+      }
+    });
+  });
+}
+
+
+
+
+const generateClients = () => {
+  let clients = [];
+  const numClients = Math.floor(Math.random() * (5000 - 3000) + 3000); // générer un nombre aléatoire entre 3000 et 5000
+  for (let i = 0; i < numClients; i++) {
+    const firstName = faker.name.firstName();
+    const lastName = faker.name.lastName();
+    const streetAddress = faker.address.streetAddress();
+    const zipCode = faker.address.zipCode();
+    const city = faker.address.city();
+    const registrationDate = faker.date.between('2010-01-01', '2022-03-19').toISOString().slice(0, 10); // générer une date aléatoire entre 2010 et aujourd'hui
+    const username = faker.internet.userName();
+    const password = faker.internet.password();
+
+    const client = [faker.random.alphaNumeric(9).toUpperCase(), firstName, lastName, streetAddress, zipCode, city, registrationDate, username, password];
+    clients.push(client);
+  }
+  return clients;
+}
+
+const insertClients = () => {
+  const clients = generateClients();
+  const insertQuery = "INSERT INTO client (NASclient, prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password) VALUES ?";
+  db.query(insertQuery, [clients], (error, results) => {
+    if (error) {
+      throw error;
+    }
+    console.log(`${results.affectedRows} clients ont été insérés dans la base de données.`);
+  });
+}
+
+
+
+
+
+
+function createRandomRentals() {
+  // Query all clients from the client table
+  db.query('SELECT * FROM client', (error, clients) => {
+    if (error) throw error;
+
+    // Loop through each client
+    clients.forEach((client) => {
+      // Select a random hotel for the client
+      db.query('SELECT * FROM hotel ORDER BY RAND() LIMIT 1', (error, hotels) => {
+        if (error) throw error;
+
+        const hotel = hotels[0];
+
+        // Select a random employee that works at the hotel
+        db.query('SELECT * FROM employe WHERE idhotel = ? ORDER BY RAND() LIMIT 1', [hotel.idhotel], (error, employees) => {
+          if (error) throw error;
+
+          const employee = employees[0];
+
+          // Generate between 1 and 3 rental transactions
+          const numRentals = Math.floor(Math.random() * 3) + 1;
+
+          for (let i = 0; i < numRentals; i++) {
+            // Generate random dates between 2020 and 2024 using Faker
+            const checkInDate = faker.date.between('2020-01-01', '2024-12-31');
+            const checkOutDate = faker.date.between(checkInDate, '2024-12-31');
+
+            // Generate a random payment method using Faker
+            const paymentMethod = faker.finance.transactionType();
+
+            // Select a random room at the hotel for the rental
+            db.query('SELECT * FROM chambre WHERE idhotel = ? ORDER BY RAND() LIMIT 1', [hotel.idhotel], (error, chambres) => {
+              if (error) throw error;
+
+              const chambre = chambres[0];
+
+              // Insert the rental into the loue table
+              const rental = {
+                idChambre: chambre.idChambre,
+                NASclient: client.NASclient,
+                NASemploye: employee.NASemploye,
+                checkIndDate: checkInDate,
+                checkOutDate: checkOutDate,
+                paiement: paymentMethod,
+                archive: false
+              };
+
+              db.query('INSERT INTO loue SET ?', rental, (error, results) => {
+                if (error) throw error;
+              });
+            });
+          }
+        });
+      });
+    });
+  });
+}
+
+
 
 
 
@@ -615,6 +949,16 @@ function populateDb() {
 initDB();
 initTable();
 //populateDb()
+//createRandomChainesHoteleres();
+//populateBureaux();
+//populateHotels();
+//populateEmployees();
+//assignHotelManagers();
+//checkRolesForEmployees();
+//addRoomsAndCommodities();
+//insertClients();
+//createReservations();
+//createRandomRentals();
 
 // ============ API CONFIG ===================
 
@@ -903,11 +1247,154 @@ function generateToken(username) {
 }
 
 
+
+function getHotelAndRooms(token) {
+  return new Promise((resolve, reject) => {
+    const username = users[token];
+    if (!username) {
+      reject(new Error('Invalid token'));
+      return;
+    }
+
+    const hotelQuery = `SELECT hotel.idhotel, hotel.nom AS hotel_nom, hotel.rue AS hotel_rue, hotel.codePostal AS hotel_codePostal, hotel.ville AS hotel_ville, 
+               (SELECT COUNT(*) FROM chambre WHERE chambre.idHotel = hotel.idhotel) AS nombrechambres
+               FROM hotel 
+               JOIN employe ON employe.idhotel = hotel.idhotel 
+               WHERE employe.username = '${username}'`;
+
+    const roomsQuery = `SELECT chambre.idChambre, chambre.prix, chambre.capaciteChambre, chambre.disponible, chambre.vue, chambre.etendue, chambre.problemechambre
+                        FROM chambre 
+                        JOIN hotel ON hotel.idhotel = chambre.idHotel 
+                        JOIN employe ON employe.idhotel = hotel.idhotel
+                        WHERE employe.username = '${username}'`;
+
+    db.query(hotelQuery, (err, hotelResult) => {
+      if (err || hotelResult.length === 0) {
+        console.error('Error executing get hotel query:', err);
+        reject(new Error('Internal server error'));
+        return;
+      }
+
+      const hotel = {
+        idhotel: hotelResult[0].idhotel,
+        nom: hotelResult[0].hotel_nom,
+        rue: hotelResult[0].hotel_rue,
+        codePostal: hotelResult[0].hotel_codePostal,
+        ville: hotelResult[0].hotel_ville,
+        nombrechambres: hotelResult[0].nombrechambres,
+      };
+
+      db.query(roomsQuery, (err, roomsResult) => {
+        if (err) {
+          console.error('Error executing get rooms query:', err);
+          reject(new Error('Internal server error'));
+          return;
+        }
+
+        const chambres = roomsResult.map(row => ({
+          idChambre: row.idChambre,
+          prix: row.prix,
+          capaciteChambre: row.capaciteChambre,
+          disponible: row.disponible,
+          vue: row.vue,
+          etendue: row.etendue,
+          problemechambre: row.problemechambre
+        }));
+
+        const hotelAndRoomsInfo = {
+          hotel,
+          chambres
+        };
+        
+        resolve(hotelAndRoomsInfo);
+      });
+    });
+  });
+}
+
+
+
+function getMainProfileInfos(token) {
+  return new Promise((resolve, reject) => {
+    const username = users[token];
+    if (!username) {
+      reject(new Error('Invalid token'));
+      return;
+    }
+
+    const query = `SELECT employe.NASemploye, employe.prenom AS employe_prenom, employe.nomFamille AS employe_nomFamille, employe.rue AS employe_rue, employe.codePostal AS employe_codePostal, employe.ville AS employe_ville, employe.username AS employe_username, employe.password AS employe_password, 
+    hotel.idhotel, hotel.nom AS hotel_nom, hotel.classement, hotel.nombrechambres, hotel.rue AS hotel_rue, hotel.codePostal AS hotel_codePostal, hotel.ville AS hotel_ville, hotel.email AS hotel_email, hotel.numeroTel AS hotel_numeroTel, 
+    chainehoteliere.idchaine, chainehoteliere.nom AS chainehoteliere_nom, chainehoteliere.nombrehotel AS chainehoteliere_nombrehotel, 
+    bureau.idBureau, bureau.rue AS bureau_rue, bureau.codePostal AS bureau_codePostal, bureau.ville AS bureau_ville, bureau.email AS bureau_email, bureau.numeroTel AS bureau_numeroTel 
+  FROM employe
+  JOIN hotel ON employe.idhotel = hotel.idhotel
+  JOIN chainehoteliere ON hotel.idchaine = chainehoteliere.idchaine
+  JOIN bureau ON chainehoteliere.idchaine = bureau.idchaine
+  WHERE employe.username = '${username}'`;
+
+    db.query(query, (err, result) => {
+      if (err || result.length === 0) {
+        console.error('Error executing main profile query:', err);
+        reject(new Error('Internal server error'));
+        return;
+      }
+
+      const user = result[0];
+
+      const userInfo = {
+        employe: {
+          username: user.employe_username,
+          password: user.employe_password,
+          prenom: user.employe_prenom,
+          nomFamille: user.employe_nomFamille,
+          rue: user.employe_rue,
+          codePostal: user.employe_codePostal,
+          ville: user.employe_ville,
+          NASemploye: user.NASemploye,
+          idhotel: user.idhotel
+        },
+        hotel: {
+          nom: user.hotel_nom,
+          classement: user.classement,
+          nombrechambres: user.nombrechambres,
+          rue: user.hotel_rue,
+          codePostal: user.hotel_codePostal,
+          ville: user.hotel_ville,
+          email: user.hotel_email,
+          numeroTel: user.hotel_numeroTel,
+          idchaine: user.idchaine
+        },
+        chainehoteliere: {
+          nom: user.chainehoteliere_nom,
+          nombrehotel: user.chainehoteliere_nombrehotel
+        },
+        bureaux: result.map(row => ({
+          idBureau: row.idBureau,
+          rue: row.bureau_rue,
+          codePostal: row.bureau_codePostal,
+          ville: row.bureau_ville,
+          email: row.bureau_email,
+          numeroTel: row.bureau_numeroTel
+        }))
+      };
+      
+      resolve(userInfo);
+    });
+  });
+}
+
+
 // Endpoint pour la requête username
 app.get('/api/mainProfileInfos', (req, res) => {
   const token = req.headers.authorization;
-  console.log(token)
-  console.log(users)
+  //console.log(token)
+  getHotelAndRooms(token)
+  .then((userInfo) => {
+   // console.log(userInfo);
+  })
+  .catch((error) => {
+    console.error(error);
+  });
   const username = users[token];
   if (!username) {
     return res.status(401).send('Invalid token');
@@ -972,6 +1459,20 @@ WHERE employe.username = '${username}'`;
     //console.log(userInfo)
     res.json(userInfo);
   });
+});
+
+
+app.get('/api/hotelInfos', (req, res) => {
+  const token = req.headers.authorization;
+  console.log(req)
+  getHotelAndRooms(token)
+    .then(hotelAndRoomsInfo => {
+      res.json(hotelAndRoomsInfo);
+    })
+    .catch(error => {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    });
 });
 
 //================================= TEST : A ENLEVER MB3D ============
