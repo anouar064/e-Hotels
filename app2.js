@@ -948,17 +948,27 @@ function createRandomRentals() {
 //=========== MAIN ================
 initDB();
 initTable();
-//populateDb()
+
+//run le serveur pour chaque etape et mettre les autres etapes en commentaires : 
+
+//Etape 1 : 
+
 //createRandomChainesHoteleres();
 //populateBureaux();
 //populateHotels();
+
+//Etape 2 : 
+
 //populateEmployees();
 //assignHotelManagers();
 //checkRolesForEmployees();
+
+//Etape 3 pprend du temps sans print voir count dans myAdmins
 //addRoomsAndCommodities();
 //insertClients();
-//createReservations();
-//createRandomRentals();
+//etape 4
+//createReservations(); !!!!!!! Ne marche pas jsp fen drt la fonction 
+//createRandomRentals();// prend bcpppp de temps attendre 
 
 // ============ API CONFIG ===================
 
@@ -1464,7 +1474,7 @@ WHERE employe.username = '${username}'`;
 
 app.get('/api/hotelInfos', (req, res) => {
   const token = req.headers.authorization;
-  console.log(req)
+  //console.log(req)
   getHotelAndRooms(token)
     .then(hotelAndRoomsInfo => {
       res.json(hotelAndRoomsInfo);
