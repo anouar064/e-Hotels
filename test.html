@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Test API Chaînes Hôtelières</title>
+	<!-- Chargement des frameworks CSS et jQuery -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+	<div class="container mt-3">
+		<h1>Test API Chaînes Hôtelières</h1>
+		<hr>
+
+		<!-- Formulaire pour ajouter une chaîne hôtelière -->
+		<div class="card mb-3">
+			<div class="card-header">Ajouter une chaîne hôtelière</div>
+			<div class="card-body">
+				<form id="form-add-chainehoteliere">
+					<div class="form-group">
+						<label for="input-nom">Nom de la chaîne hôtelière</label>
+						<input type="text" class="form-control" id="input-nom" required>
+					</div>
+					<div class="form-group">
+						<label for="input-nombrehotel">Nombre d'hôtels de la chaîne</label>
+						<input type="number" class="form-control" id="input-nombrehotel" required>
+					</div>
+					<div class="form-group">
+						<label for="input-rue">Rue du bureau principal</label>
+						<input type="text" class="form-control" id="input-rue" required>
+					</div>
+					<div class="form-group">
+						<label for="input-codePostal">Code postal du bureau principal</label>
+						<input type="text" class="form-control" id="input-codePostal" required>
+					</div>
+					<div class="form-group">
+						<label for="input-ville">Ville du bureau principal</label>
+						<input type="text" class="form-control" id="input-ville" required>
+					</div>
+					<div class="form-group">
+						<label for="input-email">Adresse email du bureau principal</label>
+						<input type="email" class="form-control" id="input-email" required>
+					</div>
+					<div class="form-group">
+						<label for="input-numeroTel">Numéro de téléphone du bureau principal</label>
+						<input type="tel" class="form-control" id="input-numeroTel" required>
+					</div>
+					<button type="submit" class="btn btn-primary">Ajouter</button>
+				</form>
+			</div>
+		</div>
+
+		<!-- Formulaire pour ajouter un bureau à une chaîne hôtelière -->
+		<div class="card mb-3">
+			<div class="card-header">Ajouter un bureau à une chaîne hôtelière</div>
+			<div class="card-body">
+				<form id="form-add-bureau">
+					<div class="form-group">
+						<label for="input-chainehoteliere">Nom de la chaîne hôtelière</label>
+						<select class="form-control" id="input-chainehoteliere" required>
+							<!-- Option par défaut -->
+							<option value="">Choisir une chaîne hôtelière</option>
+							<!-- Options générées dynamiquement -->
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="input-rue-bureau">Rue du bureau</label>
+						<input type="text" class="form-control" id="input-rue-bureau" required>
+					</div>
+					<div class="form-group">
+						<label for="input-codePostal-bureau">Code postal du bureau</label>
+						<input type="text" class="form-control" id="input-codePostal-bureau" required>
+					</div>
+					<div class="form-group">
+						<label for="input-ville-bureau">Ville du bureau</label>
+						<input type="text" class="form-control" id="input-ville-bureau" required>
+					</div>
+					<div class="form-group">
+						<label for="input-email-bureau">Adresse email du bureau</label>
+						<input type="email" class="form-control" id="input-email-bureau" required>
+					</div>
+					<div class="form-group">
+						<label for="input-numeroTel-bureau">Numéro de téléphone du bureau</label>
+						<input type="tel" class="form-control" id="input-numeroTel-bureau" required>
+					</div>
+					<button type="submit" class="btn btn-primary">Ajouter</button>
+				</form>
+			</div>
+		</div>
+		
+                        	<!-- Formulaire pour rechercher une chaîne hôtelière -->
+	<div class="card mb-3">
+		<div class="card-header">Rechercher une chaîne hôtelière</div>
+		<div class="card-body">
+			<form id="form-search-chainehoteliere">
+				<div class="form-group">
+					<label for="input-nom-chainehoteliere">Nom de la chaîne hôtelière</label>
+					<input type="text" class="form-control" id="input-nom-chainehoteliere" required>
+				</div>
+				<button type="submit" class="btn btn-primary">Rechercher</button>
+			</form>
+		</div>
+	</div>
+
+	<!-- Liste des chaînes hôtelières -->
+	<div class="card mb-3">
+		<div class="card-header">Liste des chaînes hôtelières</div>
+		<div class="card-body">
+			<table class="table">
+				<thead>
+					<tr>
+						<th scope="col">ID</th>
+						<th scope="col">Nom</th>
+						<th scope="col">Nombre d'hôtels</th>
+						<th scope="col">Bureau principal</th>
+					</tr>
+				</thead>
+				<tbody id="table-chaineshotels">
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<!-- Formulaire pour mettre à jour une chaîne hôtelière -->
+	<div class="card mb-3">
+		<div class="card-header">Liste des chaînes hôtelières</div>
+		<div class="card-body">
+			<table class="table">
+				<thead>
+					<tr>
+						<th scope="col">ID</th>
+						<th scope="col">Nom</th>
+						<th scope="col">Nombre d'hôtels</th>
+						<th scope="col">Bureau principal</th>
+						<th scope="col">Actions</th>
+					</tr>
+				</thead>
+				<tbody id="table-chaineshotels2">
+				</tbody>
+			</table>
+		</div>
+	</div>
+	
+
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script>
+	$(document).ready(() => {
+		// Ajout d'une chaîne hôtelière
+		$('#form-add-chainehoteliere').submit((event) => {
+			event.preventDefault();
+			const nom = $('#input-nom').val();
+			const nombrehotel = $('#input-nombrehotel').val();
+			const rue = $('#input-rue').val();
+			const codePostal = $('#input-codePostal').val();
+			const ville = $('#input-ville').val();
+			const email = $('#input-email').val();
+			const numeroTel = $('#input-numeroTel').val();
+			$.ajax({
+				method: 'POST',
+				url: 'http://localhost:3000/chaines-hotels',
+				data: {
+					nom: nom,
+nombrehotel: nombrehotel,
+rue: rue,
+codePostal: codePostal,
+ville: ville,
+email: email,
+numeroTel: numeroTel
+},
+success: () => {
+alert('Chaîne hôtelière ajoutée avec succès');
+location.reload();
+},
+error: () => {
+alert('Erreur lors de lajout de la chaîne hôtelière');
+}
+});
+});
+
+		// Ajout d'un bureau à une chaîne hôtelière
+		$('#form-add-bureau').submit((event) => {
+			event.preventDefault();
+			const rue = $('#input-rue-bureau').val();
+			const codePostal = $('#input-codePostal-bureau').val();
+			const ville = $('#input-ville-bureau').val();
+			const email = $('#input-email-bureau').val();
+			const numeroTel = $('#input-numeroTel-bureau').val();
+			const idChaine = $('#input-chainehoteliere').val();
+			if (!idChaine) return;
+			$.ajax({
+				method: 'POST',
+				url: `http://localhost:3000/chaines-hotels/${idChaine}/bureaux`,
+				data: {
+					rue: rue,
+					codePostal: codePostal,
+					ville: ville,
+					email: email,
+					numeroTel: numeroTel
+				},
+				success: () => {
+					alert('Bureau ajouté avec succès');
+					location.reload();
+				},
+				error: () => {
+					alert('Erreur lors de l\'ajout du bureau');
+				}
+			});
+		});
+
+		// Recherche d'une chaîne hôtelière
+		$('#form-search-chainehoteliere').submit((event) => {
+  event.preventDefault();
+  const searchValue = $('#input-nom-chainehoteliere').val();
+  let url = `http://localhost:3000/chaines-hotels`;
+
+  if (searchValue) {
+    url += `?nom=${encodeURIComponent(searchValue)}`;
+  }
+
+  $.ajax({
+    method: 'GET',
+    url: url,
+    success: (data) => {
+      if (data.length > 0) {
+        alert(`Chaîne hôtelière trouvée : ID ${data[0].idchaine} - Nom : ${data[0].nom}`);
+      } else {
+        alert('Aucune chaîne hôtelière trouvée');
+      }
+    },
+    error: (jqXHR, textStatus, errorThrown) => {
+      if (jqXHR.status === 404) {
+        alert('Aucune chaîne hôtelière trouvée');
+      } else {
+        alert('Erreur lors de la recherche de la chaîne hôtelière');
+      }
+    }
+  });
+});
+
+
+
+
+$.ajax({
+  method: 'GET',
+  url: 'http://localhost:3000/chaines-hotels',
+  success: (data) => {
+    console.log('Resultat http://localhost:3000/chaines-hotels : ');
+    console.log(data);
+    data.forEach((chainehoteliere) => {
+      const bureauPrincipal = `${chainehoteliere.bureaux[0].rue}, ${chainehoteliere.bureaux[0].codePostal} ${chainehoteliere.bureaux[0].ville} - ${chainehoteliere.bureaux[0].email} - ${chainehoteliere.bureaux[0].numeroTel}`;
+      $('#table-chaineshotels').append(`
+        <tr>
+          <td>${chainehoteliere.idchaine}</td>
+          <td>${chainehoteliere.nom}</td>
+          <td>${chainehoteliere.nombrehotel}</td>
+          <td>${bureauPrincipal}</td>
+        </tr>
+      `);
+    });
+  },
+  error: () => {
+    alert('Erreur lors du chargement de la liste des chaînes hôtelières');
+  }
+});
+
+$.ajax({
+  method: 'GET',
+  url: 'http://localhost:3000/chaines-hotels',
+  success: (data) => {
+    data.forEach((chainehoteliere) => {
+      $('#input-chainehoteliere').append(`<option value="${chainehoteliere.idchaine}">${chainehoteliere.nom}</option>`);
+    });
+  },
+  error: () => {
+    alert('Erreur lors du chargement de la liste des chaînes hôtelières');
+  }
+});
+
+
+$.ajax({
+	method: 'GET',
+	url: 'http://localhost:3000/chaines-hotels',
+	success: (data) => {
+		data.forEach((chainehoteliere) => {
+			const bureauPrincipal = `${chainehoteliere.bureaux[0].rue}, ${chainehoteliere.bureaux[0].codePostal} ${chainehoteliere.bureaux[0].ville} - ${chainehoteliere.bureaux[0].email} - ${chainehoteliere.bureaux[0].numeroTel}`;
+			$('#table-chaineshotels2').append(`
+				<tr data-idchaine="${chainehoteliere.idchaine}">
+					<td>${chainehoteliere.idchaine}</td>
+					<td contenteditable="true">${chainehoteliere.nom}</td>
+					<td contenteditable="true">${chainehoteliere.nombrehotel}</td>
+					<td>${bureauPrincipal}</td>
+					<td>
+  <div class="btn-group" role="group">
+    <button type="button" class="btn btn-primary btn-edit">Modifier</button>
+    <button type="button" class="btn btn-danger btn-delete">Supprimer</button>
+  </div>
+</td>
+
+				</tr>
+			`);
+		});
+
+		$('.btn-edit').click(function() {
+			const row = $(this).closest('tr');
+			const idChaine = row.data('idchaine');
+			const nom = row.find('td:eq(1)').text();
+			const nombrehotel = row.find('td:eq(2)').text();
+			$.ajax({
+				method: 'PUT',
+				url: `http://localhost:3000/chaines-hotels/${idChaine}`,
+				data: { nom: nom, nombrehotel: nombrehotel },
+				success: () => {
+					alert('Chaîne hôtelière modifiée avec succès');
+				},
+				error: () => {
+					alert('Erreur lors de la modification de la chaîne hôtelière');
+				}
+			});
+		});
+
+		$('.btn-delete').click(function() {
+			const row = $(this).closest('tr');
+			const idChaine = row.data('idchaine');
+			$.ajax({
+				method: 'DELETE',
+				url: `http://localhost:3000/chaines-hotels/${idChaine}`,
+				success: () => {
+					alert('Chaîne hôtelière supprimée avec succès');
+					row.remove();
+				},
+				error: () => {
+					alert('Erreur lors de la suppression de la chaîne hôtelière');
+				}
+			});
+		});
+	},
+	error: () => {
+		alert('Erreur lors du chargement de la liste des chaînes hôtelières');
+}
+});
+
+});
+
+// Mise à jour d'une chaîne hôtelière
+
+
+</script>
+
+</body>
+</html>

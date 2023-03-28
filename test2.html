@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Management</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <div id="chaines-hotels-container"></div>
+
+    <script>
+        $(document).ready(() => {
+            const apiUrl = 'http://localhost:3000';
+
+            const fetchChainesHotels = () => {
+                $.get(`${apiUrl}/chaines-hotels`, (chainesHotels) => {
+                    const container = $('#chaines-hotels-container');
+                    container.empty();
+
+                    chainesHotels.forEach((chainehoteliere) => {
+                        const chainehoteliereRow = $(`
+                            <div>
+                                <input type="text" value="${chainehoteliere.nom}">
+                                <input type="text" value="${chainehoteliere.nombrehotel}">
+                                <button class="edit">Modifier</button>
+                                <button class="delete">Supprimer</button>
+                                <select class="hotels-bureaux">
+                                    <option disabled selected>Sélectionnez un hôtel ou bureau</option>
+                                </select>
+                            </div>
+                        `);
+
+                        chainehoteliere.hotels.forEach((hotel) => {
+                            chainehoteliereRow.find('.hotels-bureaux').append(`<option>${hotel.nom} (Hôtel)</option>`);
+                        });
+
+                        chainehoteliere.bureaux.forEach((bureau) => {
+                            chainehoteliereRow.find('.hotels-bureaux').append(`<option>${bureau.rue}, ${bureau.codePostal}, ${bureau.ville} (Bureau)</option>`);
+                        });
+
+                        chainehoteliereRow.find('.edit').click(() => {
+                            const nom = chainehoteliereRow.find('input[type="text"]:eq(0)').val();
+                            const nombrehotel = chainehoteliereRow.find('input[type="text"]:eq(1)').val();
+                            $.ajax({
+                                url: `${apiUrl}/chaines-hotels/${chainehoteliere.idchaine}`,
+                                type: 'PUT',
+                                data: { nom, nombrehotel },
+                                success: () => {
+                                    fetchChainesHotels();
+                                },
+                                error: () => {
+                                    alert('Error updating chainehoteliere');
+                                }
+                            });
+                        });
+
+                        chainehoteliereRow.find('.delete').click(() => {
+                            $.ajax({
+                                url: `${apiUrl}/chaines-hotels/${chainehoteliere.idchaine}`,
+                                type: 'DELETE',
+                                success: () => {
+                                    fetchChainesHotels();
+                                },
+                                error: () => {
+                                    alert('Error deleting chainehoteliere');
+                                }
+                            });
+                        });
+
+                        container.append(chainehoteliereRow);
+                    });
+                });
+            };
+
+            fetchChainesHotels();
+        });
+    </script>
+</body>
+</html>
