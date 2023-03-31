@@ -1540,3 +1540,116 @@ function getHotelAndRooms(token) {
     });
   });
 }
+
+
+//================ CLIENT ============
+app.post('/loginClient', (req, res) => {
+  const { username, password } = req.body;
+  console.log(req.body)
+  // Check if user exists and password is correct in the database
+  db.query('SELECT * FROM client WHERE username = ? AND password = ?', [username, password], (err, result) => {
+    if (err || result.length === 0) {
+      return res.status(401).send('Username or password incorrect');
+    }
+    const token = generateToken(username);
+    // Add user to dictionary with token as key and username as value
+    users[token] = username;
+    res.json({ token });
+  });
+});
+
+app.get('/randomClient', (req, res) => {
+  db.query('SELECT username, password FROM client ORDER BY RAND() LIMIT 1', (error, results, fields) => {
+    if (error) throw error;
+    res.send(JSON.stringify(results[0]));
+  });
+});
+
+//================ QUESTION 10  ===================
+app.get('/vue1', (req, res) => {
+  let sql = 'CREATE VIEW nombre_chambres_disponibles_par_zone AS SELECT zone, COUNT(*) AS nombre_chambres_disponibles FROM chambre WHERE disponible = 1 GROUP BY ville';
+  db.query(sql, (err, result) => {
+      if (err) throw err;
+      console.log(result);
+      res.send('Vue 1 created: Nombre de chambres disponibles par zone');
+  });
+});
+// Exemple requete pour utiliser vue1:
+// SELECT * FROM nombre_chambres_disponibles_par_zone;
+
+
+app.get('/vue2', (req, res) => {
+  let sql = 'CREATE VIEW capacite_chambres_hotel_specifique AS SELECT hotel, SUM(capaciteChambre) AS capacite_totale FROM chambre GROUP BY hotel';
+  db.query(sql, (err, result) => {
+      if (err) throw err;
+      console.log(result);
+      res.send('Vue 2 created: Capacité de toutes les chambres d un hôtel spécifique');
+  });
+});
+// Exemple requete pour utiliser vue2:
+// SELECT capacite_totale FROM capacite_chambres_hotel_specifique WHERE hotel = 'nom_de_l_hotel';
+
+// Disponibiltes des chambres pour client
+app.get('/chambreinfosForClient/:idhotel', (req, res) => {
+  const username = users[req.headers.authorization];
+  const {idhotel} = req.params;
+  console.log(idhotel)
+  if (!username) {
+    res.status(401).send('Invalid token');
+    return;
+  }
+  const hotelQuery = `SELECT hotel.idhotel, hotel.nom, hotel.rue, hotel.codePostal, hotel.ville
+  FROM hotel
+  WHERE hotel.idhotel = ?`;
+
+  const chambreQuery = `SELECT chambre.idChambre, chambre.prix, chambre.capaciteChambre, chambre.disponible, chambre.vue, chambre.etendue, chambre.problemechambre, GROUP_CONCAT(commodite.nom SEPARATOR ', ') AS commodites
+  FROM chambre
+  JOIN hotel ON hotel.idhotel = chambre.idHotel
+  LEFT JOIN commodite ON commodite.idchambre = chambre.idChambre
+  WHERE chambre.idhotel = ? AND chambre.disponible = 1 AND chambre.problemechambre= 0
+  GROUP BY chambre.idChambre`;
+
+
+  db.query(hotelQuery, [idhotel], (err, hotelResult) => {
+    if (err || hotelResult.length === 0) {
+      console.error('Error executing get hotel query:', err);
+      res.status(500).send('Error fetching hotel info');
+      return;
+    }
+
+    const hotel = {
+      idhotel: hotelResult[0].idhotel,
+      nom: hotelResult[0].nom,
+      rue: hotelResult[0].rue,
+      codePostal: hotelResult[0].codePostal,
+      ville: hotelResult[0].ville,
+    };
+
+    db.query(chambreQuery, [idhotel], (err, chambreResult) => {
+      if (err) {
+        console.error('Error executing get chambres query:', err);
+        res.status(500).send('Error fetching chambre infos');
+        return;
+      }
+
+      const chambres = chambreResult.map(row => ({
+        idChambre: row.idChambre,
+        prix: row.prix,
+        capaciteChambre: row.capaciteChambre,
+        disponible: row.disponible,
+        vue: row.vue,
+        etendue: row.etendue,
+        problemechambre: row.problemechambre,
+        commodites: row.commodites,
+      }));
+
+      const chambreInfo = {
+        chambres,
+        hotel,
+      };
+      console.log(chambreInfo)
+      res.send(chambreInfo);
+    });
+  });
+});
+
