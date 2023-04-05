@@ -226,6 +226,16 @@ function initTable() {
       }
       console.log('> Table Role created or already exists');
     });
+
+
+    db.query(createClientTable, (err) => {
+      if (err) {
+        console.error('Error creating client table:', err);
+        return;
+      }
+      console.log('> Table client created or already exists');
+    });
+    
   
     db.query(createLoueTable, (err) => {
       if (err) {
@@ -245,14 +255,7 @@ function initTable() {
     
   
   
-    db.query(createClientTable, (err) => {
-      if (err) {
-        console.error('Error creating client table:', err);
-        return;
-      }
-      console.log('> Table client created or already exists');
-    });
-    
+
   
   
   
@@ -282,244 +285,230 @@ app.listen('3000', () => {
 });
 
 
-//   ####### CRUD ChaineHoteliere Bureau 
+// ####### CRUD ChaineHoteliere Bureau 
 
-app.post('/chaines-hotels', (req, res) => {
-    const { nom, nombrehotel, rue, codePostal, ville, email, numeroTel } = req.body;
-  
-    db.beginTransaction(error => {
-      if (error) {
-        console.error('Error starting transaction:', error);
-        res.status(500).send('Error adding chainehoteliere and bureau');
-        return;
-      }
-  
-      db.query('INSERT INTO chainehoteliere (nom, nombrehotel) VALUES (?, ?)', [nom, nombrehotel], (error, results) => {
+  app.post('/chaines-hotels', (req, res) => {
+      const { nom, nombrehotel, rue, codePostal, ville, email, numeroTel } = req.body;
+    
+      db.beginTransaction(error => {
         if (error) {
-          console.error('Error adding chainehoteliere:', error);
-          db.rollback(() => {
-            res.status(500).send('Error adding chainehoteliere and bureau');
-          });
+          console.error('Error starting transaction:', error);
+          res.status(500).send('Error adding chainehoteliere and bureau');
           return;
         }
-  
-        const idchaine = results.insertId;
-  
-        db.query('INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?)', [rue, codePostal, ville, email, numeroTel, idchaine], (error, results) => {
+    
+        db.query('INSERT INTO chainehoteliere (nom, nombrehotel) VALUES (?, ?)', [nom, nombrehotel], (error, results) => {
           if (error) {
-            console.error('Error adding Bureau:', error);
+            console.error('Error adding chainehoteliere:', error);
             db.rollback(() => {
               res.status(500).send('Error adding chainehoteliere and bureau');
             });
             return;
           }
-  
-          db.commit(error => {
+    
+          const idchaine = results.insertId;
+    
+          db.query('INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?)', [rue, codePostal, ville, email, numeroTel, idchaine], (error, results) => {
             if (error) {
-              console.error('Error committing transaction:', error);
+              console.error('Error adding Bureau:', error);
               db.rollback(() => {
                 res.status(500).send('Error adding chainehoteliere and bureau');
               });
               return;
             }
-  
-            res.status(201).send('Chainehoteliere and bureau added successfully');
+    
+            db.commit(error => {
+              if (error) {
+                console.error('Error committing transaction:', error);
+                db.rollback(() => {
+                  res.status(500).send('Error adding chainehoteliere and bureau');
+                });
+                return;
+              }
+    
+              res.status(201).send('Chainehoteliere and bureau added successfully');
+            });
           });
         });
       });
     });
-  });
-  
-  
-// POST /chaines-hotels/{idchaine}/bureaux
+  // POST /chaines-hotels/{idchaine}/bureaux
+  app.post('/chaines-hotels/:idchaine/bureaux', (req, res) => {
+      const { rue, codePostal, ville, email, numeroTel } = req.body;
+      const { idchaine } = req.params;
+    
+      db.query('INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?)', [rue, codePostal, ville, email, numeroTel, idchaine], (error, results) => {
+        if (error) {
+          console.error('Error adding Bureau:', error);
+          res.status(500).send('Error adding Bureau');
+          return;
+        }
+    
+        res.status(201).send('Bureau added successfully');
+      });
+    });
+    
+  // GET /chaines-hotels/:querry
+  app.get('/chaines-hotels/:query?', (req, res) => {
+      const { query } = req.params;
+      const { nom } = req.query;
+      let queryString;
+    
+      if (query) {
+        queryString = 'SELECT * FROM chainehoteliere WHERE idchaine = ? OR nom = ?';
+      } else if (nom) {
+        queryString = 'SELECT * FROM chainehoteliere WHERE nom = ?';
+      } else {
+        queryString = 'SELECT * FROM chainehoteliere';
+      }
+    
+      db.query(queryString, [query || nom], (error, results) => {
+        if (error) {
+          console.error('Error fetching chainehoteliere:', error);
+          res.status(500).send('Error fetching chainehoteliere');
+          return;
+        }
+    
+        if (results.length === 0) {
+          res.status(404).send('Chainehoteliere not found');
+          return;
+        }
+    
+        const chaineshotelsPromises = results.map((chainehoteliere) => {
+          return new Promise((resolve, reject) => {
+            const chainehotelWithHotels = { ...chainehoteliere };
+    
+            db.query('SELECT * FROM Bureau WHERE idchaine = ?', [chainehotelWithHotels.idchaine], (error, results) => {
+              if (error) {
+                console.error('Error fetching bureaux:', error);
+                reject(error);
+              } else {
+                chainehotelWithHotels.bureaux = results;
+    
+                db.query('SELECT * FROM hotel WHERE idchaine = ?', [chainehotelWithHotels.idchaine], (error, results) => {
+                  if (error) {
+                    console.error('Error fetching hotels:', error);
+                    reject(error);
+                  } else {
+                    chainehotelWithHotels.hotels = results;
+                    resolve(chainehotelWithHotels);
+                  }
+                });
+              }
+            });
+          });
+        });
+    
+        Promise.all(chaineshotelsPromises)
+          .then((chaineshotels) => {
+            res.send(chaineshotels);
+          })
+          .catch((error) => {
+            console.error('Error fetching chainehoteliere, bureaux, and hotels:', error);
+            res.status(500).send('Error fetching chainehoteliere, bureaux, and hotels');
+          });
+      });
+    });
+    
+  // DELETE /chaines-hotels/{idchaine}
 
-app.post('/chaines-hotels/:idchaine/bureaux', (req, res) => {
-    const { rue, codePostal, ville, email, numeroTel } = req.body;
+  app.delete('/chaines-hotels/:idchaine', (req, res) => {
     const { idchaine } = req.params;
-  
-    db.query('INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?)', [rue, codePostal, ville, email, numeroTel, idchaine], (error, results) => {
-      if (error) {
-        console.error('Error adding Bureau:', error);
-        res.status(500).send('Error adding Bureau');
-        return;
-      }
-  
-      res.status(201).send('Bureau added successfully');
-    });
-  });
-  
 
-// GET /chaines-hotels/:querry
+    const deleteAssociatedData = async () => {
+      // Supprimer les commodités associées
+      await db.query('DELETE FROM commodite WHERE idchambre IN (SELECT idChambre FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?))', [idchaine]);
 
+      // Supprimer les réservations associées
+      await db.query('DELETE FROM reserve WHERE idChambre IN (SELECT idChambre FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?))', [idchaine]);
 
-app.get('/chaines-hotels/:query?', (req, res) => {
-    const { query } = req.params;
-    const { nom } = req.query;
-    let queryString;
-  
-    if (query) {
-      queryString = 'SELECT * FROM chainehoteliere WHERE idchaine = ? OR nom = ?';
-    } else if (nom) {
-      queryString = 'SELECT * FROM chainehoteliere WHERE nom = ?';
-    } else {
-      queryString = 'SELECT * FROM chainehoteliere';
-    }
-  
-    db.query(queryString, [query || nom], (error, results) => {
-      if (error) {
-        console.error('Error fetching chainehoteliere:', error);
-        res.status(500).send('Error fetching chainehoteliere');
-        return;
-      }
-  
-      if (results.length === 0) {
-        res.status(404).send('Chainehoteliere not found');
-        return;
-      }
-  
-      const chaineshotelsPromises = results.map((chainehoteliere) => {
-        return new Promise((resolve, reject) => {
-          const chainehotelWithHotels = { ...chainehoteliere };
-  
-          db.query('SELECT * FROM Bureau WHERE idchaine = ?', [chainehotelWithHotels.idchaine], (error, results) => {
-            if (error) {
-              console.error('Error fetching bureaux:', error);
-              reject(error);
-            } else {
-              chainehotelWithHotels.bureaux = results;
-  
-              db.query('SELECT * FROM hotel WHERE idchaine = ?', [chainehotelWithHotels.idchaine], (error, results) => {
-                if (error) {
-                  console.error('Error fetching hotels:', error);
-                  reject(error);
-                } else {
-                  chainehotelWithHotels.hotels = results;
-                  resolve(chainehotelWithHotels);
-                }
-              });
-            }
-          });
-        });
+      // Supprimer les locations associées
+      await db.query('DELETE FROM loue WHERE idChambre IN (SELECT idChambre FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?))', [idchaine]);
+
+      // Supprimer les rôles associés
+      await db.query('DELETE FROM role WHERE idhotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?)', [idchaine]);
+
+      // Supprimer les employés associés
+      await db.query('DELETE FROM employe WHERE idhotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?)', [idchaine]);
+
+      // Supprimer les chambres associées
+      await db.query('DELETE FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?)', [idchaine]);
+
+      // Supprimer les hôtels associés
+      await db.query('DELETE FROM hotel WHERE idchaine = ?', [idchaine]);
+
+      // Supprimer les bureaux associés
+      await db.query('DELETE FROM Bureau WHERE idchaine = ?', [idchaine]);
+
+      // Supprimer la chaîne d'hôtels
+      await db.query('DELETE FROM chainehoteliere WHERE idchaine = ?', [idchaine]);
+    };
+
+    deleteAssociatedData()
+      .then(() => {
+        res.send('Chaîne d\'hôtels et données associées supprimées avec succès');
+      })
+      .catch((error) => {
+        console.error('Erreur lors de la suppression de la chaîne d\'hôtels et des données associées:', error);
+        res.status(500).send('Erreur lors de la suppression de la chaîne d\'hôtels et des données associées');
       });
-  
-      Promise.all(chaineshotelsPromises)
-        .then((chaineshotels) => {
-          res.send(chaineshotels);
-        })
-        .catch((error) => {
-          console.error('Error fetching chainehoteliere, bureaux, and hotels:', error);
-          res.status(500).send('Error fetching chainehoteliere, bureaux, and hotels');
-        });
-    });
   });
-  
 
-// DELETE /chaines-hotels/{idchaine}
-
-app.delete('/chaines-hotels/:idchaine', (req, res) => {
+  // DELETE /chaines-hotels/{idchaine}/bureaux/{idBureau}
+  app.delete('/chaines-hotels/:idchaine/bureaux/:idBureau', (req, res) => {
+      const { idchaine, idBureau } = req.params;
+      
+      db.query('DELETE FROM Bureau WHERE idBureau = ? AND idchaine = ?', [idBureau, idchaine], (error, results) => {
+      if (error) {
+      console.error('Error deleting Bureau:', error);
+      res.status(500).send('Error deleting Bureau');
+      return;
+      }
+      if (results.affectedRows === 0) {
+          res.status(404).send('Bureau not found');
+          return;
+        }
+        
+        res.send('Bureau deleted successfully');
+      });
+  });
+  // PUT /chaines-hotels/{idchaine}
+  app.put('/chaines-hotels/:idchaine', (req, res) => {
+  const { nom, nombrehotel } = req.body;
   const { idchaine } = req.params;
 
-  const deleteAssociatedData = async () => {
-    // Supprimer les commodités associées
-    await db.query('DELETE FROM commodite WHERE idchambre IN (SELECT idChambre FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?))', [idchaine]);
-
-    // Supprimer les réservations associées
-    await db.query('DELETE FROM reserve WHERE idChambre IN (SELECT idChambre FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?))', [idchaine]);
-
-    // Supprimer les locations associées
-    await db.query('DELETE FROM loue WHERE idChambre IN (SELECT idChambre FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?))', [idchaine]);
-
-    // Supprimer les rôles associés
-    await db.query('DELETE FROM role WHERE idhotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?)', [idchaine]);
-
-    // Supprimer les employés associés
-    await db.query('DELETE FROM employe WHERE idhotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?)', [idchaine]);
-
-    // Supprimer les chambres associées
-    await db.query('DELETE FROM chambre WHERE idHotel IN (SELECT idhotel FROM hotel WHERE idchaine = ?)', [idchaine]);
-
-    // Supprimer les hôtels associés
-    await db.query('DELETE FROM hotel WHERE idchaine = ?', [idchaine]);
-
-    // Supprimer les bureaux associés
-    await db.query('DELETE FROM Bureau WHERE idchaine = ?', [idchaine]);
-
-    // Supprimer la chaîne d'hôtels
-    await db.query('DELETE FROM chainehoteliere WHERE idchaine = ?', [idchaine]);
-  };
-
-  deleteAssociatedData()
-    .then(() => {
-      res.send('Chaîne d\'hôtels et données associées supprimées avec succès');
-    })
-    .catch((error) => {
-      console.error('Erreur lors de la suppression de la chaîne d\'hôtels et des données associées:', error);
-      res.status(500).send('Erreur lors de la suppression de la chaîne d\'hôtels et des données associées');
-    });
-});
-
-
-
-// DELETE /chaines-hotels/{idchaine}/bureaux/{idBureau}
-
-app.delete('/chaines-hotels/:idchaine/bureaux/:idBureau', (req, res) => {
-    const { idchaine, idBureau } = req.params;
-    
-    db.query('DELETE FROM Bureau WHERE idBureau = ? AND idchaine = ?', [idBureau, idchaine], (error, results) => {
-    if (error) {
-    console.error('Error deleting Bureau:', error);
-    res.status(500).send('Error deleting Bureau');
-    return;
+  db.query('UPDATE chainehoteliere SET nom = ?, nombrehotel = ? WHERE idchaine = ?', [nom, nombrehotel, idchaine], (error, results) => {
+  if (error) {
+  console.error('Error updating chainehoteliere:', error);
+  res.status(500).send('Error updating chainehoteliere');
+  return;
+  }if (results.affectedRows === 0) {
+      res.status(404).send('Chainehoteliere not found');
+      return;
     }
-    if (results.affectedRows === 0) {
-        res.status(404).send('Bureau not found');
-        return;
-      }
-      
-      res.send('Bureau deleted successfully');
-    });
-});
+    
+    res.send('Chainehoteliere updated successfully');});
+  });
+  // PUT /chaines-hotels/{idchaine}/bureaux/{idBureau}
+  app.put('/chaines-hotels/:idchaine/bureaux/:idBureau', (req, res) => {
+  const { rue, codePostal, ville, email, numeroTel } = req.body;
+  const { idchaine, idBureau } = req.params;
 
-// PUT /chaines-hotels/{idchaine}
-
-app.put('/chaines-hotels/:idchaine', (req, res) => {
-const { nom, nombrehotel } = req.body;
-const { idchaine } = req.params;
-
-db.query('UPDATE chainehoteliere SET nom = ?, nombrehotel = ? WHERE idchaine = ?', [nom, nombrehotel, idchaine], (error, results) => {
-if (error) {
-console.error('Error updating chainehoteliere:', error);
-res.status(500).send('Error updating chainehoteliere');
-return;
-}if (results.affectedRows === 0) {
-    res.status(404).send('Chainehoteliere not found');
-    return;
-  }
-  
-  res.send('Chainehoteliere updated successfully');});
-});
-
-// PUT /chaines-hotels/{idchaine}/bureaux/{idBureau}
-
-app.put('/chaines-hotels/:idchaine/bureaux/:idBureau', (req, res) => {
-const { rue, codePostal, ville, email, numeroTel } = req.body;
-const { idchaine, idBureau } = req.params;
-
-db.query('UPDATE Bureau SET rue = ?, codePostal = ?, ville = ?, email = ?, numeroTel = ? WHERE idBureau = ? AND idchaine = ?', [rue, codePostal, ville, email, numeroTel, idBureau, idchaine], (error, results) => {
-if (error) {
-console.error('Error updating Bureau:', error);
-res.status(500).send('Error updating Bureau');
-return;
-}if (results.affectedRows === 0) {
-    res.status(404).send('Bureau not found');
-    return;
-  }
-  
-  res.send('Bureau updated successfully');});
-});
+  db.query('UPDATE Bureau SET rue = ?, codePostal = ?, ville = ?, email = ?, numeroTel = ? WHERE idBureau = ? AND idchaine = ?', [rue, codePostal, ville, email, numeroTel, idBureau, idchaine], (error, results) => {
+  if (error) {
+  console.error('Error updating Bureau:', error);
+  res.status(500).send('Error updating Bureau');
+  return;
+  }if (results.affectedRows === 0) {
+      res.status(404).send('Bureau not found');
+      return;
+    }
+    
+    res.send('Bureau updated successfully');});
+  });
   
   
-//   ####### CRUD hotel  
+// ####### CRUD HOTEL
 
 // POST /hotels
 app.post('/hotels', (req, res) => {
@@ -535,7 +524,6 @@ app.post('/hotels', (req, res) => {
     res.status(201).send('Hotel added successfully');
   });
 });
-
 // GET /hotels/:idHotel
 app.get('/hotels/:idHotel', (req, res) => {
   const { idHotel } = req.params;
@@ -555,7 +543,6 @@ app.get('/hotels/:idHotel', (req, res) => {
     res.send(results[0]);
   });
 });
-
 // PUT /hotels/:idHotel
 app.put('/hotels/:idHotel', (req, res) => {
   const { idchaine, nom, rue, codePostal, ville, email, numeroTel } = req.body;
@@ -579,7 +566,6 @@ app.put('/hotels/:idHotel', (req, res) => {
     res.send('Hotel updated successfully');
   });
 });
-
 // DELETE /hotels/:idHotel
 app.delete('/hotels/:idHotel', (req, res) => {
   const { idHotel } = req.params;
@@ -604,8 +590,8 @@ app.delete('/hotels/:idHotel', (req, res) => {
     });
 });
 
-//   ####### CRUD room  
 
+//   ####### CRUD ROOM  
 // Create a room
 app.post('/hotels/:idhotel/chambres', (req, res) => {
   const { prix, capaciteChambre, disponible, vue, etendue, problemechambre } = req.body;
@@ -621,7 +607,6 @@ app.post('/hotels/:idhotel/chambres', (req, res) => {
       res.status(201).send('Chambre added successfully');
   });
 });
-
 // Get a list of rooms
 app.get('/hotels/:idhotel/chambres', (req, res) => {
   const { idhotel } = req.params;
@@ -636,7 +621,6 @@ app.get('/hotels/:idhotel/chambres', (req, res) => {
       res.send(results);
   });
 });
-
 // Update a room
 app.put('/hotels/:idhotel/chambres/:idChambre', (req, res) => {
   const { prix, capaciteChambre, disponible, vue, etendue, problemechambre } = req.body;
@@ -657,7 +641,6 @@ app.put('/hotels/:idhotel/chambres/:idChambre', (req, res) => {
       res.send('Chambre updated successfully');
   });
 });
-
 // Delete a room
 app.delete('/hotels/:idhotel/chambres/:idChambre', (req, res) => {
   const { idhotel, idChambre } = req.params;
@@ -702,6 +685,9 @@ app.delete('/hotels/:idhotel/chambres/:idChambre', (req, res) => {
   });
 });
 
+
+// ####### CRUD comodite
+
 // add comodite
 app.post('/chambres/:idChambre/commodites', (req, res) => {
   
@@ -739,6 +725,10 @@ console.log(req.body)
     res.send('Commodite deleted successfully');
   });
 });
+
+
+
+// ####### CRUD employees
 
 // POST /employees
 app.post('/employees', (req, res) => {
@@ -805,9 +795,6 @@ app.get('/employees/:NASemploye', (req, res) => {
   res.send(results[0]);
   });
   });
-
-
-
 // Update an employee and their role
 app.put('/employees/:NASemploye', (req, res) => {
   const { prenom, nomFamille, rue, codePostal, ville, idhotel, nomRole, salaireDebut } = req.body;
@@ -854,8 +841,23 @@ app.put('/employees/:NASemploye', (req, res) => {
     });
   });
 });
+// Update an employee without role
+app.put('/employees/:NASemploye/update-info', (req, res) => {
+  const { prenom, nomFamille, rue, codePostal, ville, idhotel } = req.body;
+  console.log(req.body);
 
+  const { NASemploye } = req.params;
 
+  db.query('UPDATE employe SET prenom = ?, nomFamille = ?, rue = ?, codePostal = ?, ville = ?, idhotel = ? WHERE NASemploye = ?', [prenom, nomFamille, rue, codePostal, ville, idhotel, NASemploye], (error, results) => {
+    if (error) {
+      console.error('Error updating employee:', error);
+      res.status(500).send('Error updating employee');
+      return;
+    }
+
+    res.status(200).send('Employee updated successfully');
+  });
+});
 // Delete an employee and their role
 app.delete('/employees/:NASemploye', (req, res) => {
   db.beginTransaction((error) => {
@@ -901,11 +903,16 @@ app.delete('/employees/:NASemploye', (req, res) => {
   });
 });
 
+
+// ####### CRUD locations
+
+
 // POST /locations
 app.post('/locations', (req, res) => {
-  const { idChambre, NASclient, NASemploye, checkIndDate, checkOutDate, paiement } = req.body;
-
-  db.query('INSERT INTO loue (idChambre, NASclient, NASemploye, checkIndDate, checkOutDate, paiement) VALUES (?, ?, ?, ?, ?, ?)', [idChambre, NASclient, NASemploye, checkIndDate, checkOutDate, paiement], (error, results) => {
+  const { idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement } = req.body;
+  console.log( idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement )
+  
+  db.query('INSERT INTO loue (idChambre, NASclient, NASemploye, checkIndDate , checkOutDate, paiement,archive) VALUES (?, ?, ?, ?, ?, ?,0)', [idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement], (error, results) => {
     if (error) {
       console.error('Error adding location:', error);
       res.status(500).send('Error adding location');
@@ -913,9 +920,9 @@ app.post('/locations', (req, res) => {
     }
 
     res.status(201).send('Location added successfully');
+    console.log('ok')
   });
 });
-
 // GET /locations/:idLocation
 app.get('/locations/:idLocation', (req, res) => {
   const { idLocation } = req.params;
@@ -976,6 +983,89 @@ app.delete('/locations/:idLocation', (req, res) => {
     res.send('Location deleted successfully');
   });
 });
+
+// ####### CRUD reservations
+
+// POST /reservations
+app.post('/reservations', (req, res) => {
+  const { idChambre, NASclient, checkInDate, checkOutDate } = req.body;
+
+  db.query('INSERT INTO reserve (idChambre, NASclient, checkInDate, checkOutDate) VALUES (?, ?, ?, ?)', [idChambre, NASclient, checkInDate, checkOutDate], (error, results) => {
+    if (error) {
+      console.error('Error adding reservation:', error);
+      res.status(500).send('Error adding reservation');
+      return;
+    }
+
+    res.status(201).send('Reservation added successfully');
+  });
+});
+
+// GET /reservations/:idReservation
+app.get('/reservations/:idReservation', (req, res) => {
+  const { idReservation } = req.params;
+
+  db.query('SELECT * FROM reserve WHERE idReservation = ?', [idReservation], (error, results) => {
+    if (error) {
+      console.error('Error fetching reservation:', error);
+      res.status(500).send('Error fetching reservation');
+      return;
+    }
+
+    if (results.length === 0) {
+      res.status(404).send('Reservation not found');
+      return;
+    }
+
+    res.send(results[0]);
+  });
+});
+
+// PUT /reservations/:idReservation
+app.put('/reservations/:idReservation', (req, res) => {
+  const { idChambre, NASclient, checkInDate, checkOutDate } = req.body;
+  const { idReservation } = req.params;
+
+  db.query('UPDATE reserve SET idChambre = ?, NASclient = ?, checkInDate = ?, checkOutDate = ? WHERE idReservation = ?', [idChambre, NASclient, checkInDate, checkOutDate, idReservation], (error, results) => {
+    if (error) {
+      console.error('Error updating reservation:', error);
+      res.status(500).send('Error updating reservation');
+      return;
+    }
+
+    if (results.affectedRows === 0) {
+      res.status(404).send('Reservation not found');
+      return;
+    }
+
+    res.send('Reservation updated successfully');
+  });
+});
+
+// DELETE /reservations/:idReservation
+app.delete('/reservations/:idReservation', (req, res) => {
+  const { idReservation } = req.params;
+  
+  db.query('DELETE FROM reserve WHERE idReservation = ?', [idReservation], (error, results) => {
+    if (error) {
+      console.error('Error deleting reservation:', error);
+      res.status(500).send('Error deleting reservation');
+      return;
+    }
+
+    if (results.affectedRows === 0) {
+      res.status(404).send('Reservation not found');
+      return;
+    }
+
+    res.send('Reservation deleted successfully');
+    console.log(idReservation);
+
+    console.log('Reservation deleted successfully');
+    
+  });
+});
+
 
 
 //   ####### requests Dashboard employee
@@ -1271,46 +1361,47 @@ app.get('/employeinfos', (req, res) => {
   });
 });
 
-app.get('/locations', (req, res) => {
-  const token = req.headers.authorization;
-  const username = users[token];
-
+// Endpoint pour récupérer les informations de location pour l'employé connecté
+app.get('/locationInfos', (req, res) => {
+  const username = users[req.headers.authorization];
   if (!username) {
     res.status(401).send('Invalid token');
     return;
   }
 
+  // Query to get the ID of the hotel where the employee works
   const hotelQuery = `
-    SELECT h.idhotel
-    FROM hotel h
-    JOIN employe e ON e.idhotel = h.idhotel
-    WHERE e.username = ?`;
+    SELECT idhotel
+    FROM employe
+    WHERE username = ?;
+  `;
 
-  const locationsQuery = `
-    SELECT
-      loue.idLocation,
-      loue.idChambre,
-      loue.NASclient,
-      loue.NASemploye,
-      loue.checkIndDate,
-      loue.checkOutDate,
-      loue.paiement,
-      client.prenom AS clientPrenom,
-      client.nomFamille AS clientNomFamille,
-      client.rue AS clientRue,
-      client.codePostal AS clientCodePostal,
-      client.ville AS clientVille,
-      employe.prenom AS employePrenom,
-      employe.nomFamille AS employeNomFamille,
-      employe.rue AS employeRue,
-      employe.codePostal AS employeCodePostal,
-      employe.ville AS employeVille
+  // Query to get the information of all rooms in the hotel
+  const chambreQuery = `
+    SELECT *
+    FROM chambre
+    WHERE idHotel = ?;
+  `;
+
+  // Query to get the information of all employees at the hotel (except for the current employee)
+  const employeQuery = `
+    SELECT *
+    FROM employe
+    WHERE idhotel = ? AND username != ?;
+  `;
+
+  // Query to get all current room rentals at the hotel where the employee works
+  const locationQuery = `
+    SELECT *
     FROM loue
-    JOIN chambre ON chambre.idChambre = loue.idChambre
-    JOIN client ON client.NASclient = loue.NASclient
-    JOIN employe ON employe.NASemploye = loue.NASemploye
-    WHERE chambre.idHotel = ?`;
+    WHERE idChambre IN (
+      SELECT idChambre
+      FROM chambre
+      WHERE idHotel = ?
+    ) AND archive = 0;
+  `;
 
+  // Get the ID of the hotel where the employee works
   db.query(hotelQuery, [username], (err, hotelResult) => {
     if (err || hotelResult.length === 0) {
       console.error('Error executing get hotel query:', err);
@@ -1318,43 +1409,151 @@ app.get('/locations', (req, res) => {
       return;
     }
 
-    const idhotel = hotelResult[0].idhotel;
+    const hotelId = hotelResult[0].idhotel;
 
-    db.query(locationsQuery, [idhotel], (error, results) => {
-      if (error) {
-        console.error('Error fetching locations:', error);
-        res.status(500).send('Error fetching locations');
+    // Get the information of all rooms in the hotel
+    db.query(chambreQuery, [hotelId], (err, chambreResult) => {
+      if (err) {
+        console.error('Error executing get chambre query:', err);
+        res.status(500).send('Error fetching chambre infos');
         return;
       }
 
-      const locations = results.map(row => ({
-        idLocation: row.idLocation,
-        idChambre: row.idChambre,
-        checkIndDate: row.checkIndDate,
-        checkOutDate: row.checkOutDate,
-        paiement: row.paiement,
-        client: {
-          NASclient: row.NASclient,
-          prenom: row.clientPrenom,
-          nomFamille: row.clientNomFamille,
-          rue: row.clientRue,
-          codePostal: row.clientCodePostal,
-          ville: row.clientVille,
-        },
-        employe: {
-          NASemploye: row.NASemploye,
-          prenom: row.employePrenom,
-          nomFamille: row.employeNomFamille,
-          rue: row.employeRue,
-          codePostal: row.employeCodePostal,
-          ville: row.employeVille,
-        },
-      }));
+      const chambres = chambreResult;
+      console.log('Chambres:', chambres);
 
-      res.send(locations);
+      // Get the information of all employees at the hotel (except for the current employee)
+      db.query(employeQuery, [hotelId, username], (err, employeResult) => {
+        if (err) {
+          console.error('Error executing get employe query:', err);
+          res.status(500).send('Error fetching employe infos');
+          return;
+        }
+
+        const employes = employeResult;
+
+        // Get all current room rentals at the hotel where the employee works
+        db.query(locationQuery, [hotelId], (err, locationResult) => {
+          if (err) {
+            console.error('Error executing get location query:', err);
+            res.status(500).send('Error fetching location infos');
+            return;
+          }
+
+          const locations = locationResult;
+         // console.log('Locations:', locations);
+
+          // Combine all query results into a single object and send it as the response
+          const locationInfos = {
+            chambres,
+            employes,
+            locations,
+          };
+
+          res.json(locationInfos);
+        });
+      });
     });
   });
 });
+
+// Endpoint to get reservation information for the connected employee
+app.get('/reservationInfos', (req, res) => {
+  const username = users[req.headers.authorization];
+  if (!username) {
+    res.status(401).send('Invalid token');
+    return;
+  }
+
+  // Query to get the ID of the hotel where the employee works
+  const hotelQuery = `
+    SELECT idhotel
+    FROM employe
+    WHERE username = ?;
+  `;
+
+  // Query to get the information of all rooms in the hotel
+  const chambreQuery = `
+    SELECT *
+    FROM chambre
+    WHERE idHotel = ?;
+  `;
+
+  // Query to get the information of all employees at the hotel (except for the current employee)
+  const employeQuery = `
+    SELECT *
+    FROM employe
+    WHERE idhotel = ? AND username != ?;
+  `;
+
+  // Query to get all current reservations at the hotel where the employee works
+  const reservationQuery = `
+    SELECT *
+    FROM reserve
+    WHERE idChambre IN (
+      SELECT idChambre
+      FROM chambre
+      WHERE idHotel = ?
+    );
+  `;
+
+  // Get the ID of the hotel where the employee works
+  db.query(hotelQuery, [username], (err, hotelResult) => {
+    if (err || hotelResult.length === 0) {
+      console.error('Error executing get hotel query:', err);
+      res.status(500).send('Error fetching hotel info');
+      return;
+    }
+
+    const hotelId = hotelResult[0].idhotel;
+
+    // Get the information of all rooms in the hotel
+    db.query(chambreQuery, [hotelId], (err, chambreResult) => {
+      if (err) {
+        console.error('Error executing get chambre query:', err);
+        res.status(500).send('Error fetching chambre infos');
+        return;
+      }
+
+      const chambres = chambreResult;
+
+      // Get the information of all employees at the hotel (except for the current employee)
+      db.query(employeQuery, [hotelId, username], (err, employeResult) => {
+        if (err) {
+          console.error('Error executing get employe query:', err);
+          res.status(500).send('Error fetching employe infos');
+          return;
+        }
+
+        const employes = employeResult;
+
+        // Get all current reservations at the hotel where the employee works
+        db.query(reservationQuery, [hotelId], (err, reservationResult) => {
+          if (err) {
+            console.error('Error executing get reservation query:', err);
+            res.status(500).send('Error fetching reservation infos');
+            return;
+          }
+
+          const reservations = reservationResult;
+
+          // Combine all query results into a single object and send it as the response
+          const reservationInfos = {
+            chambres,
+            employes,
+            reservations,
+          };
+
+          res.json(reservationInfos);
+          console.log(reservationInfos.reservations)
+          console.log(reservationInfos.reservations.length)
+        });
+      });
+    });
+  });
+});
+
+
 
 
 
