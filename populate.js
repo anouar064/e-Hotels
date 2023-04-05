@@ -106,23 +106,6 @@
           FOREIGN KEY (NASclient) REFERENCES client(NASclient)
         )
 */
-const mysql = require('mysql');
-const { faker } = require('@faker-js/faker');
-const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'ehotel',
-  port: 3306,
-});
-
-db.connect((error) => {
-  if (error) {
-    console.error('Error connecting to MySQL:', error);
-    return;
-  }
-  console.log('> Connected to MySQL');
-});
 
 const hotelChains = [
     "Marriott International",
@@ -202,7 +185,24 @@ const comodites = [
     "Carte de débit",
     "Non payé"
   ];
-  
+const mysql = require('mysql');
+const { faker } = require('@faker-js/faker');
+const db = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: '',
+  database: 'ehotel',
+  port: 3306,
+});
+
+db.connect((err) => {
+    if (err) {
+      console.error(`Error connecting to MySQL: ${err.message}`);
+      return;
+    }
+    console.log('Connected to MySQL database');
+  });
+
   function createHotelChains() {
     // Ajouter les chaînes hôtelières à la base de données
     hotelChains.forEach((chain) => {
@@ -515,12 +515,86 @@ const comodites = [
     });
   }
   
+  // Function to count hotels for each chain and update the count in the database
+function updateChainHotelCount() {
+    const query = `
+      SELECT chainehoteliere.idchaine, COUNT(hotel.idhotel) AS hotelCount
+      FROM chainehoteliere
+      LEFT JOIN hotel ON chainehoteliere.idchaine = hotel.idchaine
+      GROUP BY chainehoteliere.idchaine
+    `;
+    
+    db.query(query, (error, results) => {
+      if (error) {
+        console.error('Error counting hotels for chains:', error);
+      } else {
+        results.forEach((result) => {
+          const chainId = result.idchaine;
+          const hotelCount = result.hotelCount;
+          
+          const updateQuery = `
+            UPDATE chainehoteliere
+            SET nombrehotel = ?
+            WHERE idchaine = ?
+          `;
+          
+          const updateValues = [hotelCount, chainId];
+          
+          db.query(updateQuery, updateValues, (error, result) => {
+            if (error) {
+              console.error(`Error updating hotel count for chain ID ${chainId}:`, error);
+            } else {
+              console.log(`Updated hotel count for chain ID ${chainId} to ${hotelCount}`);
+            }
+          });
+        });
+      }
+    });
+  }
+  
+  // Function to count rooms for each hotel and update the count in the database
+function updateHotelRoomCount() {
+    const query = `
+      SELECT hotel.idhotel, COUNT(chambre.idChambre) AS roomCount
+      FROM hotel
+      LEFT JOIN chambre ON hotel.idhotel = chambre.idHotel
+      GROUP BY hotel.idhotel
+    `;
+    
+    db.query(query, (error, results) => {
+      if (error) {
+        console.error('Error counting rooms for hotels:', error);
+      } else {
+        results.forEach((result) => {
+          const hotelId = result.idhotel;
+          const roomCount = result.roomCount;
+          
+          const updateQuery = `
+            UPDATE hotel
+            SET nombrechambres = ?
+            WHERE idhotel = ?
+          `;
+          
+          const updateValues = [roomCount, hotelId];
+          
+          db.query(updateQuery, updateValues, (error, result) => {
+            if (error) {
+              console.error(`Error updating room count for hotel ID ${hotelId}:`, error);
+            } else {
+              console.log(`Updated room count for hotel ID ${hotelId} to ${roomCount}`);
+            }
+          });
+        });
+      }
+    });
+  }
   
   
-  //createHotelChains()
-  //createHotels()
-  //addRooms()
-  //createEmployees()
-  //addClients()
-  //populateLocation();
-  populateReservations();
+//createHotelChains()
+//createHotels()
+//addRooms()
+//createEmployees()
+//addClients()
+//populateLocation();
+ //populateReservations();
+

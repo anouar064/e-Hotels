@@ -255,6 +255,45 @@ function initTable() {
     
   
   
+    const createTrigger1 = `
+    CREATE TRIGGER IF NOT EXISTS after_insert_hotel
+    AFTER INSERT ON hotel
+    FOR EACH ROW
+    BEGIN
+      UPDATE chainehoteliere
+      SET nombrehotel = nombrehotel + 1
+      WHERE idchaine = NEW.idchaine;
+    END;
+`;
+
+db.query(createTrigger1, (err) => {
+  if (err) {
+    console.error('Error creating trigger 1:', err);
+    return;
+  }
+  console.log('> Trigger 1 created');
+});
+
+const createTrigger2 = `
+    CREATE TRIGGER IF NOT EXISTS after_delete_hotel
+    AFTER DELETE ON hotel
+    FOR EACH ROW
+    BEGIN
+      UPDATE chainehoteliere
+      SET nombrehotel = nombrehotel - 1
+      WHERE idchaine = OLD.idchaine;
+    END;
+`;
+
+db.query(createTrigger2, (err) => {
+  if (err) {
+    console.error('Error creating trigger 2:', err);
+    return;
+  }
+  console.log('> Trigger 2 created');
+});
+
+// repeat for the other triggers
 
   
   
@@ -709,7 +748,7 @@ app.post('/chambres/:idChambre/commodites', (req, res) => {
 //supprimer commodite 
 app.delete('/commodite', (req, res) => {
   const { idHotel, idChambre, nomCommodite } = req.body;
-console.log(req.body)
+//console.log(req.body)
   db.query('DELETE FROM commodite WHERE nom = ? AND idChambre = ?', [nomCommodite, idChambre], (error, results) => {
     if (error) {
       console.error('Error deleting commodite:', error);
@@ -798,7 +837,7 @@ app.get('/employees/:NASemploye', (req, res) => {
 // Update an employee and their role
 app.put('/employees/:NASemploye', (req, res) => {
   const { prenom, nomFamille, rue, codePostal, ville, idhotel, nomRole, salaireDebut } = req.body;
-  console.log(req.body)
+  //console.log(req.body)
   db.beginTransaction((error) => {
     if (error) {
       console.error('Error starting transaction:', error);
@@ -844,7 +883,7 @@ app.put('/employees/:NASemploye', (req, res) => {
 // Update an employee without role
 app.put('/employees/:NASemploye/update-info', (req, res) => {
   const { prenom, nomFamille, rue, codePostal, ville, idhotel } = req.body;
-  console.log(req.body);
+  //console.log(req.body);
 
   const { NASemploye } = req.params;
 
@@ -910,7 +949,7 @@ app.delete('/employees/:NASemploye', (req, res) => {
 // POST /locations
 app.post('/locations', (req, res) => {
   const { idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement } = req.body;
-  console.log( idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement )
+ // console.log( idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement )
   
   db.query('INSERT INTO loue (idChambre, NASclient, NASemploye, checkIndDate , checkOutDate, paiement,archive) VALUES (?, ?, ?, ?, ?, ?,0)', [idChambre, NASclient, NASemploye, checkInDate, checkOutDate, paiement], (error, results) => {
     if (error) {
@@ -920,7 +959,7 @@ app.post('/locations', (req, res) => {
     }
 
     res.status(201).send('Location added successfully');
-    console.log('ok')
+    //console.log('ok')
   });
 });
 // GET /locations/:idLocation
@@ -1059,13 +1098,82 @@ app.delete('/reservations/:idReservation', (req, res) => {
     }
 
     res.send('Reservation deleted successfully');
-    console.log(idReservation);
+   // console.log(idReservation);
 
-    console.log('Reservation deleted successfully');
+   // console.log('Reservation deleted successfully');
     
   });
 });
 
+
+// ####### CRUD clients
+
+// POST /clients
+  app.post('/clients', (req, res) => {
+  const { NASclient, prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password } = req.body;
+
+  db.query('INSERT INTO client (NASclient, prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [NASclient, prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password], (error, results) => {
+    if (error) {
+      console.error('Error adding client:', error);
+      res.status(500).send('Error adding client');
+      return;
+    }
+
+    res.status(201).json({ message: 'Client added successfully' });
+  });
+});
+
+// GET /clients/:NASclient
+app.get('/clients/:NASclient', (req, res) => {
+  const { NASclient } = req.params;
+
+  db.query('SELECT * FROM client WHERE NASclient = ?', [NASclient], (error, results) => {
+    if (error) {
+      console.error('Error fetching client:', error);
+      res.status(500).send('Error fetching client');
+      return;
+    }
+
+    if (results.length === 0) {
+      res.status(404).send('Client not found');
+      return;
+    }
+
+    res.send(results[0]);
+  });
+});
+
+// Update a client
+app.put('/clients/:NASclient', (req, res) => {
+  const { prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password } = req.body;
+
+  const { NASclient } = req.params;
+
+  db.query('UPDATE client SET prenom = ?, nomFamille = ?, rue = ?, codePostal = ?, ville = ?, dateEnregistrement = ?, username = ?, password = ? WHERE NASclient = ?', [prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password, NASclient], (error, results) => {
+    if (error) {
+      console.error('Error updating client:', error);
+      res.status(500).send('Error updating client');
+      return;
+    }
+
+    res.status(200).send('Client updated successfully');
+  });
+});
+
+// Delete a client
+app.delete('/clients/:NASclient', (req, res) => {
+  const { NASclient } = req.params;
+
+  db.query('DELETE FROM client WHERE NASclient = ?', [NASclient], (error, results) => {
+    if (error) {
+      console.error('Error deleting client:', error);
+      res.status(500).send('Error deleting client');
+      return;
+    }
+
+    res.status(200).send('Client deleted successfully');
+  });
+});
 
 
 //   ####### requests Dashboard employee
@@ -1420,7 +1528,7 @@ app.get('/locationInfos', (req, res) => {
       }
 
       const chambres = chambreResult;
-      console.log('Chambres:', chambres);
+    //  console.log('Chambres:', chambres);
 
       // Get the information of all employees at the hotel (except for the current employee)
       db.query(employeQuery, [hotelId, username], (err, employeResult) => {
@@ -1545,14 +1653,67 @@ app.get('/reservationInfos', (req, res) => {
           };
 
           res.json(reservationInfos);
-          console.log(reservationInfos.reservations)
-          console.log(reservationInfos.reservations.length)
+          //console.log(reservationInfos.reservations)
+          //console.log(reservationInfos.reservations.le)
         });
       });
     });
   });
 });
 
+app.get('/clients-with-reservation-or-rental', (req, res) => {
+  const username = users[req.headers.authorization];
+  if (!username) {
+    res.status(401).send('Invalid token');
+    return;
+  }
+
+  // Query to get the ID of the hotel where the employee works
+  const hotelQuery = `
+    SELECT idhotel
+    FROM employe
+    WHERE username = ?;
+  `;
+
+  // Query to get the clients who have a reservation or rental in a room at the same hotel
+  const clientQuery = `
+  SELECT DISTINCT client.*
+  FROM client
+  INNER JOIN reserve ON reserve.NASclient = client.NASclient
+  INNER JOIN chambre ON chambre.idChambre = reserve.idChambre
+  WHERE chambre.idHotel = ?
+         OR EXISTS (
+           SELECT 1
+           FROM loue
+           WHERE loue.idChambre = chambre.idChambre
+         );
+`;
+
+
+  // Get the ID of the hotel where the employee works
+  db.query(hotelQuery, [username], (err, hotelResult) => {
+    if (err || hotelResult.length === 0) {
+      console.error('Error executing get hotel query:', err);
+      res.status(500).send('Error fetching hotel info');
+      return;
+    }
+
+    const hotelId = hotelResult[0].idhotel;
+
+    // Get the clients who have a reservation or rental in a room at the same hotel
+    db.query(clientQuery, [hotelId], (err, clientResult) => {
+      if (err) {
+        console.error('Error executing get client query:', err);
+        res.status(500).send('Error fetching client infos');
+        return;
+      }
+
+      const clients = clientResult;
+
+      res.json(clients);
+    });
+  });
+});
 
 
 
@@ -1792,7 +1953,7 @@ app.get('/vue2', (req, res) => {
 app.get('/chambreinfosForClient/:idhotel', (req, res) => {
   const username = users[req.headers.authorization];
   const {idhotel} = req.params;
-  console.log(idhotel)
+  //console.log(idhotel)
   if (!username) {
     res.status(401).send('Invalid token');
     return;
@@ -1846,7 +2007,7 @@ app.get('/chambreinfosForClient/:idhotel', (req, res) => {
         chambres,
         hotel,
       };
-      console.log(chambreInfo)
+     // console.log(chambreInfo)
       res.send(chambreInfo);
     });
   });
