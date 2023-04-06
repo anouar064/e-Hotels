@@ -1,4 +1,5 @@
 /*
+rappel/reminder tables
  chainehoteliere (
         idchaine INTEGER AUTO_INCREMENT,
         nom VARCHAR(255) UNIQUE,
@@ -79,7 +80,7 @@
           checkOutDate DATE,
           paiement VARCHAR(255),
           PRIMARY KEY (idLocation),
-          archive BOOLEAN,
+          archive BOOLEAN DEFAULT FALSE,
           FOREIGN KEY (idChambre) REFERENCES chambre(idChambre),
           FOREIGN KEY (NASclient) REFERENCES client(NASclient),
           FOREIGN KEY (NASemploye) REFERENCES employe(NASemploye)
@@ -101,6 +102,8 @@
           NASclient VARCHAR(255),
           checkInDate DATE,
           checkOutDate DATE,
+           archive BOOLEAN DEFAULT FALSE,
+
           PRIMARY KEY (idReservation),
           FOREIGN KEY (idChambre) REFERENCES chambre(idChambre),
           FOREIGN KEY (NASclient) REFERENCES client(NASclient)
@@ -403,60 +406,70 @@ db.connect((err) => {
     }
   }
   function populateLocation() {
-    const hotelQuery = `SELECT idhotel FROM hotel`;
+    const expiredReservationsQuery = `
+      SELECT *
+      FROM reserve
+      WHERE checkInDate <= CURDATE() 
+    `;
   
-    db.query(hotelQuery, [], (error, hotels) => {
+    db.query(expiredReservationsQuery, [], (error, reservations) => {
       if (error) {
-        console.error('Error selecting hotels:', error);
+        console.error('Error selecting expired reservations:', error);
         return;
       }
   
-      hotels.forEach((hotel) => {
-        const hotelId = hotel.idhotel;
-        
-        const roomQuery = `SELECT idChambre FROM chambre WHERE idHotel = ? ORDER BY RAND() LIMIT 10, 20`;
-        const employeeQuery = `SELECT NASemploye FROM employe WHERE idhotel = ?`;
-        const clientQuery = `SELECT NASclient FROM client ORDER BY RAND() LIMIT 1`;
+      reservations.forEach((reservation) => {
+        const employeeQuery = `
+          SELECT NASemploye
+          FROM employe
+          WHERE idhotel = (
+            SELECT idhotel
+            FROM chambre
+            WHERE idChambre = ?
+          )
+        `;
   
-        db.query(roomQuery, [hotelId], (error, rooms) => {
+        db.query(employeeQuery, [reservation.idChambre], (error, employees) => {
           if (error) {
-            console.error('Error selecting rooms:', error);
+            console.error('Error selecting employees:', error);
             return;
           }
   
-          db.query(employeeQuery, [hotelId], (error, employees) => {
+          const employee = employees[Math.floor(Math.random() * employees.length)];
+          const paymentMethod = modesDePaiement[Math.floor(Math.random() * modesDePaiement.length)];
+  
+          const locationQuery = `
+            INSERT INTO loue (idChambre, NASclient, NASemploye, checkIndDate, checkOutDate, paiement, archive)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `;
+          const locationValues = [
+            reservation.idChambre,
+            reservation.NASclient,
+            employee.NASemploye,
+            reservation.checkInDate,
+            reservation.checkOutDate,
+            paymentMethod,
+            1
+          ];
+  
+          db.query(locationQuery, locationValues, (error, result) => {
             if (error) {
-              console.error('Error selecting employees:', error);
-              return;
-            }
+              console.error('Error inserting location:', error);
+            } else {
+              console.log(`Inserted location with ID ${result.insertId}`);
   
-            for (let i = 0; i < 20; i++) {
-              db.query(clientQuery, [], (error, clients) => {
+              const archiveReservationQuery = `
+                UPDATE reserve
+                SET archive = TRUE
+                WHERE idReservation = ?
+              `;
+  
+              db.query(archiveReservationQuery, [reservation.idReservation], (error, result) => {
                 if (error) {
-                  console.error('Error selecting clients:', error);
-                  return;
+                  console.error('Error archiving reservation:', error);
+                } else {
+                  console.log(`Archived reservation with ID ${reservation.idReservation}`);
                 }
-  
-                const client = clients[0];
-                const employee = employees[Math.floor(Math.random() * employees.length)];
-                const room = rooms[Math.floor(Math.random() * rooms.length)];
-  
-                const checkInDate = faker.date.between('2017-01-01', '2024-12-31').toISOString().slice(0, 10);
-                const checkOutDate = faker.date.between(checkInDate, '2024-12-31').toISOString().slice(0, 10);
-                const paymentMethod = modesDePaiement[Math.floor(Math.random() * modesDePaiement.length)];
-  
-                const isArchived = new Date(checkInDate) < new Date('2023-01-01') ? 1 : 0;
-  
-                const locationQuery = `INSERT INTO loue (idChambre, NASclient, NASemploye, checkIndDate, checkOutDate, paiement, archive) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-                const locationValues = [room.idChambre, client.NASclient, employee.NASemploye, checkInDate, checkOutDate, paymentMethod, isArchived];
-  
-                db.query(locationQuery, locationValues, (error, result) => {
-                  if (error) {
-                    console.error('Error inserting location:', error);
-                  } else {
-                    console.log(`Inserted location with ID ${result.insertId}`);
-                  }
-                });
               });
             }
           });
@@ -475,7 +488,7 @@ db.connect((err) => {
   
       hotels.forEach((hotel) => {
         const hotelId = hotel.idhotel;
-        const roomQuery = `SELECT idChambre FROM chambre WHERE idHotel = ? ORDER BY RAND() LIMIT 10`;
+        const roomQuery = `SELECT idChambre FROM chambre WHERE idHotel = ? ORDER BY RAND() LIMIT 20`;
   
         db.query(roomQuery, [hotelId], (error, rooms) => {
           if (error) {
@@ -483,7 +496,7 @@ db.connect((err) => {
             return;
           }
   
-          const clientQuery = `SELECT NASclient FROM client ORDER BY RAND() LIMIT 10`;
+          const clientQuery = `SELECT NASclient FROM client ORDER BY RAND() LIMIT 20`;
   
           db.query(clientQuery, [], (error, clients) => {
             if (error) {
@@ -495,8 +508,8 @@ db.connect((err) => {
               const room = rooms[i];
               const client = clients[i];
   
-              const checkInDate = faker.date.between('2023-04-01', '2024-12-31').toISOString().slice(0, 10);
-              const checkOutDate = faker.date.between(checkInDate, '2024-12-31').toISOString().slice(0, 10);
+              const checkInDate = faker.date.between('2014-01-01', '2024-12-31').toISOString().slice(0, 10);
+              const checkOutDate = faker.date.between(checkInDate, new Date(checkInDate).setDate(new Date(checkInDate).getDate() + 15)).toISOString().slice(0, 10);
   
               const reservationQuery = `INSERT INTO reserve (idChambre, NASclient, checkInDate, checkOutDate) VALUES (?, ?, ?, ?)`;
               const reservationValues = [room.idChambre, client.NASclient, checkInDate, checkOutDate];
@@ -514,6 +527,7 @@ db.connect((err) => {
       });
     });
   }
+  
   
   // Function to count hotels for each chain and update the count in the database
 function updateChainHotelCount() {
@@ -595,6 +609,6 @@ function updateHotelRoomCount() {
 //addRooms()
 //createEmployees()
 //addClients()
-//populateLocation();
- //populateReservations();
+//populateReservations();
+populateLocation();
 

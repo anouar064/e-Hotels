@@ -42,7 +42,8 @@ function initDB() {
         }
         console.log('> Database ehotel selected');
 
-        initTable(); // Call initTable() to create tables after selecting the database
+        initTable(); 
+        initTrigger();
       });
     });
   });
@@ -135,7 +136,7 @@ function initTable() {
           checkOutDate DATE,
           paiement VARCHAR(255),
           PRIMARY KEY (idLocation),
-          archive BOOLEAN,
+          archive BOOLEAN DEFAULT FALSE,
           FOREIGN KEY (idChambre) REFERENCES chambre(idChambre),
           FOREIGN KEY (NASclient) REFERENCES client(NASclient),
           FOREIGN KEY (NASemploye) REFERENCES employe(NASemploye)
@@ -163,6 +164,7 @@ function initTable() {
           NASclient VARCHAR(255),
           checkInDate DATE,
           checkOutDate DATE,
+          archive BOOLEAN DEFAULT FALSE,
           PRIMARY KEY (idReservation),
           FOREIGN KEY (idChambre) REFERENCES chambre(idChambre),
           FOREIGN KEY (NASclient) REFERENCES client(NASclient)
@@ -254,58 +256,200 @@ function initTable() {
     });
     
   
+
   
+  
+  }
+  
+function initTrigger() {
+
+    // Triggers
     const createTrigger1 = `
-    CREATE TRIGGER IF NOT EXISTS after_insert_hotel
-    AFTER INSERT ON hotel
+      CREATE TRIGGER IF NOT EXISTS  after_insert_hotel
+      AFTER INSERT ON hotel
+      FOR EACH ROW
+      BEGIN
+        UPDATE chainehoteliere
+        SET nombrehotel = nombrehotel + 1
+        WHERE idchaine = NEW.idchaine;
+      END;
+    `;
+  
+    const createTrigger2 = `
+      CREATE TRIGGER IF NOT EXISTS  after_delete_hotel
+      AFTER DELETE ON hotel
+      FOR EACH ROW
+      BEGIN
+        UPDATE chainehoteliere
+        SET nombrehotel = nombrehotel - 1
+        WHERE idchaine = OLD.idchaine;
+      END;
+    `;
+    const createTrigger3 = `
+    CREATE TRIGGER IF NOT EXISTS before_insert_reserve
+    BEFORE INSERT ON reserve
     FOR EACH ROW
     BEGIN
-      UPDATE chainehoteliere
-      SET nombrehotel = nombrehotel + 1
-      WHERE idchaine = NEW.idchaine;
+      IF EXISTS (
+        SELECT *
+        FROM reserve
+        WHERE idChambre = NEW.idChambre
+          AND checkInDate < NEW.checkOutDate
+          AND checkOutDate > NEW.checkInDate
+      )
+      THEN
+        SIGNAL SQLSTATE '45000'
+          SET MESSAGE_TEXT = 'Cannot insert reservation. Conflicting room reservation exists.';
+      END IF;
     END;
+  `;
+  
+  const createTrigger4 = `
+  CREATE TRIGGER IF NOT EXISTS before_insert_location
+  BEFORE INSERT ON loue
+  FOR EACH ROW
+  BEGIN
+    IF EXISTS (
+      SELECT *
+      FROM loue
+      WHERE idChambre = NEW.idChambre
+        AND checkIndDate < NEW.checkOutDate
+        AND checkOutDate > NEW.checkIndDate
+    )
+    THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cannot insert location. Conflicting room reservation exists.';
+    END IF;
+  END;
 `;
 
-db.query(createTrigger1, (err) => {
-  if (err) {
-    console.error('Error creating trigger 1:', err);
-    return;
-  }
-  console.log('> Trigger 1 created');
-});
 
-const createTrigger2 = `
-    CREATE TRIGGER IF NOT EXISTS after_delete_hotel
-    AFTER DELETE ON hotel
-    FOR EACH ROW
-    BEGIN
-      UPDATE chainehoteliere
-      SET nombrehotel = nombrehotel - 1
-      WHERE idchaine = OLD.idchaine;
-    END;
+const createTrigger5 = `
+CREATE TRIGGER IF NOT EXISTS maj_nb_chambres
+AFTER INSERT ON chambre
+FOR EACH ROW
+UPDATE hotel
+SET nombrechambres = nombrechambres + 1
+WHERE idhotel = NEW.idhotel;
 `;
 
-db.query(createTrigger2, (err) => {
-  if (err) {
-    console.error('Error creating trigger 2:', err);
-    return;
-  }
-  console.log('> Trigger 2 created');
-});
+const createTrigger6 = `
+CREATE TRIGGER IF NOT EXISTS maj_nb_chambres_supprime
+AFTER DELETE ON chambre
+FOR EACH ROW
+UPDATE hotel
+SET nombrechambres = nombrechambres - 1
+WHERE idhotel = OLD.idhotel;
+`;
+const createTrigger7 = `
+CREATE TRIGGER IF NOT EXISTS archive_location_trigger
+BEFORE INSERT ON loue
+FOR EACH ROW
+BEGIN
+    IF YEAR(NEW.checkIndDate) < YEAR(NOW()) OR YEAR(NEW.checkOutDate) < YEAR(NOW()) THEN
+        SET NEW.archive = TRUE;
+    ELSE
+        SET NEW.archive = FALSE;
+    END IF;
+END;
+`;
+const createTrigger8 = `
+CREATE TRIGGER IF NOT EXISTS delete_employe_loue
+AFTER DELETE ON employe
+FOR EACH ROW
+BEGIN
+  UPDATE loue SET NASemploye = NULL WHERE NASemploye = OLD.NASemploye;
+END;
+`;
+const createTrigger9 = `
+CREATE TRIGGER IF NOT EXISTS delete_client_reserve
+AFTER DELETE ON client
+FOR EACH ROW
+BEGIN
+  UPDATE reserve SET NASclient = NULL WHERE NASclient = OLD.NASclient;
+END;
+`;
 
-// repeat for the other triggers
+
+
+
+
+// Query triggers
+
 
   
   
+    // Query triggers
+    db.query(createTrigger1, (err) => {
+      if (err) {
+        console.error('Error creating trigger 1:', err);
+        return;
+      }
+      console.log('> Trigger (1) Count hotel created');
+    });
   
-  
-  
-  }
-  
+    db.query(createTrigger2, (err) => {
+      if (err) {
+        console.error('Error creating trigger 2:', err);
+        return;
+      }
+      console.log('> Trigger (2) Count room  created');
+    });
 
+    db.query(createTrigger3, (err) => {
+      if (err) {
+        console.error('Error creating trigger 3:', err);
+        return;
+      }
+      console.log('> Trigger (3) Check room availability created');
+    });
 
-
-
+    db.query(createTrigger4, (err) => {
+      if (err) {
+        console.error('Error creating trigger 4:', err);
+        return;
+      }
+      console.log('> Trigger (4) Check room availability for location created');
+    });
+    db.query(createTrigger5, (err) => {
+      if (err) {
+        console.error('Error creating trigger 5:', err);
+        return;
+      }
+      console.log('> Trigger (5) Count room created');
+      });
+      db.query(createTrigger6, (err) => {
+        if (err) {
+          console.error('Error creating trigger 6:', err);
+          return;
+        }
+        console.log('> Trigger (6) Count room deleted');
+        });
+      db.query(createTrigger7, (err) => {
+          if (err) {
+            console.error('Error creating trigger 7:', err);
+            return;
+          }
+          console.log('> Trigger (7) Archive location created');
+        });
+      
+      db.query(createTrigger8, (err) => {
+      if (err) {
+        console.error('Error creating trigger 2:', err);
+        return;
+      }
+      console.log('> Trigger (8) Count room deleted');
+      });
+      db.query(createTrigger9, (err) => {
+        if (err) {
+          console.error('Error creating trigger 7:', err);
+          return;
+        }
+        console.log('> Trigger (9) Archive location created');
+      });
+      }
+      
+      // Call the function to create triggers
 initDB();
 
 const app = express();
@@ -908,39 +1052,51 @@ app.delete('/employees/:NASemploye', (req, res) => {
 
     const { NASemploye } = req.params;
 
-    db.query('DELETE FROM role WHERE NASemploye = ?', [NASemploye], (error, results) => {
+    db.query('UPDATE loue SET NASemploye = NULL WHERE NASemploye = ?', [NASemploye], (error, results) => {
       if (error) {
-        console.error('Error deleting role:', error);
+        console.error('Error updating loue:', error);
         db.rollback(() => {
           res.status(500).send('Error deleting employee and role');
         });
         return;
       }
 
-      db.query('DELETE FROM employe WHERE NASemploye = ?', [NASemploye], (error, results) => {
+      db.query('DELETE FROM role WHERE NASemploye = ?', [NASemploye], (error, results) => {
         if (error) {
-          console.error('Error deleting employee:', error);
+          console.error('Error deleting role:', error);
           db.rollback(() => {
             res.status(500).send('Error deleting employee and role');
           });
           return;
         }
 
-        db.commit((error) => {
+        db.query('DELETE FROM employe WHERE NASemploye = ?', [NASemploye], (error, results) => {
           if (error) {
-            console.error('Error committing transaction:', error);
+            console.error('Error deleting employee:', error);
             db.rollback(() => {
               res.status(500).send('Error deleting employee and role');
             });
             return;
           }
 
-          res.status(200).send('Employee and role deleted successfully');
+          db.commit((error) => {
+            if (error) {
+              console.error('Error committing transaction:', error);
+              db.rollback(() => {
+                res.status(500).send('Error deleting employee and role');
+              });
+              return;
+            }
+
+            res.status(200).send('Employee and role deleted successfully');
+          });
         });
       });
     });
   });
 });
+
+
 
 
 // ####### CRUD locations
@@ -1506,7 +1662,7 @@ app.get('/locationInfos', (req, res) => {
       SELECT idChambre
       FROM chambre
       WHERE idHotel = ?
-    ) AND archive = 0;
+    ) ;
   `;
 
   // Get the ID of the hotel where the employee works
@@ -1528,7 +1684,6 @@ app.get('/locationInfos', (req, res) => {
       }
 
       const chambres = chambreResult;
-    //  console.log('Chambres:', chambres);
 
       // Get the information of all employees at the hotel (except for the current employee)
       db.query(employeQuery, [hotelId, username], (err, employeResult) => {
@@ -1549,7 +1704,7 @@ app.get('/locationInfos', (req, res) => {
           }
 
           const locations = locationResult;
-         // console.log('Locations:', locations);
+        //  console.log('Locations:', locations);
 
           // Combine all query results into a single object and send it as the response
           const locationInfos = {
@@ -1715,7 +1870,105 @@ app.get('/clients-with-reservation-or-rental', (req, res) => {
   });
 });
 
+// Endpoint to convert a reservation to a rental
+app.post('/convertReservationToRental', (req, res) => {
+  const username = users[req.headers.authorization];
 
+console.log('Username:', username);
+
+  // Check if the user is authenticated with a valid token
+  if (!username) {
+    res.status(401).send('Invalid token');
+    return;
+  }
+
+  // Get the employee's NAS number from the database
+  const nasQuery = `
+    SELECT NASemploye
+    FROM employe
+    WHERE username = ?;
+  `;
+  db.query(nasQuery, [username], (err, result) => {
+    if (err || result.length === 0) {
+      console.error('Error executing get NAS query:', err);
+      res.status(500).send('Error fetching employee info');
+      return;
+    }
+
+    const nas = result[0].NASemploye;
+
+    // Check if all required information is provided in the request body
+    const { idReservation, idChambre, NASclient, checkIndDate, checkOutDate, paiement } = req.body;
+    if (!idReservation || !idChambre || !NASclient || !checkIndDate || !checkOutDate || !paiement) {
+      res.status(400).send('Missing required information');
+      return;
+    }
+
+    // Check if the employee works at the same hotel as the room
+    const hotelQuery = `
+      SELECT idHotel
+      FROM chambre
+      WHERE idChambre = ?;
+    `;
+    db.query(hotelQuery, [idChambre], (err, result) => {
+      if (err || result.length === 0) {
+        console.error('Error executing get hotel query:', err);
+        res.status(500).send('Error fetching hotel info');
+        return;
+      }
+
+      const hotelId = result[0].idHotel;
+
+      const employeQuery = `
+        SELECT *
+        FROM employe
+        WHERE idHotel = ? AND NASemploye != ?;
+      `;
+      db.query(employeQuery, [hotelId, nas], (err, result) => {
+        if (err) {
+          console.error('Error executing get employe query:', err);
+          res.status(500).send('Error fetching employee info');
+          return;
+        }
+
+        if (result.length === 0) {
+          res.status(403).send('Cannot convert reservation to rental for a room in another hotel');
+          return;
+        }
+
+        // Insert the new rental into the database
+        const insertQuery = `
+          INSERT INTO loue (idChambre, NASclient, NASemploye, checkIndDate, checkOutDate, paiement)
+          VALUES (?, ?, ?, ?, ?, ?);
+        `;
+        db.query(insertQuery, [idChambre, NASclient, nas, checkIndDate, checkOutDate, paiement], (err, result) => {
+          if (err) {
+            console.error('Error executing insert query:', err);
+            res.status(500).send('Error converting reservation to rental');
+            return;
+          }
+
+          // Update the reservation to be archived
+          const updateQuery = `
+            UPDATE reserve
+            SET archive = true
+            WHERE idReservation = ?;
+          `;
+          db.query(updateQuery, [idReservation], (err, result) => {
+            if (err) {
+              console.error('Error executing update query:', err);
+              res.status(500).send('Error converting reservation to rental');
+              return;
+            }
+
+            res.status(200).send('Reservation converted to rental successfully');
+            console.log('Reservation converted to rental successfully')
+          });
+        });
+      });
+    });
+  });
+});
 
 
 app.get('/randomEmployee', (req, res) => {
