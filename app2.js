@@ -1184,6 +1184,11 @@ app.delete('/locations/:idLocation', (req, res) => {
 // POST /reservations
 app.post('/reservations', (req, res) => {
   const { idChambre, NASclient, checkInDate, checkOutDate } = req.body;
+  console.log(idChambre);
+  console.log(NASclient);
+  console.log(checkInDate);
+  console.log(checkOutDate);
+
 
   db.query('INSERT INTO reserve (idChambre, NASclient, checkInDate, checkOutDate) VALUES (?, ?, ?, ?)', [idChambre, NASclient, checkInDate, checkOutDate], (error, results) => {
     if (error) {
@@ -2263,6 +2268,93 @@ app.get('/chambreinfosForClient/:idhotel', (req, res) => {
      // console.log(chambreInfo)
       res.send(chambreInfo);
     });
+  });
+});
+
+//   ####### requests Dashboard employee
+//mainprofile 
+// Endpoint pour la requête username
+app.get('/mainProfileInfosClient', (req, res) => {
+  const token = req.headers.authorization;
+  //console.log(token)
+  const username = users[token];
+  if (!username) {
+    return res.status(401).send('Invalid token');
+  }
+
+  const query = `SELECT client.NASclient AS NAS, client.prenom AS prenom, client.nomFamille AS nomFamille, client.rue AS client_rue, client.codePostal AS client_codePostal, client.ville AS client_ville, client.username AS username, client.password AS password 
+FROM client
+WHERE client.username = '${username}'`;
+
+  db.query(query, (err, result) => {
+    if (err || result.length === 0) {
+      console.error('Error executing main profile query:', err);
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
+
+    const user = result[0];
+    //console.log(result)
+    const userInfo = {
+      client: {
+        username: user.username,
+        password: user.password,
+        prenom: user.prenom,
+        nomFamille: user.nomFamille,
+        rue: user.client_rue,
+        codePostal: user.client_codePostal,
+        ville: user.employe_ville,
+        NAS: user.NAS,
+      }
+    };
+    
+    //console.log(userInfo)
+    res.json(userInfo);
+  });
+});
+
+// Endpoint to get reservation information for the connected client
+app.get('/reservationInfosSpecificClient/:nas', (req, res) => {
+  const username = users[req.headers.authorization];
+  const {nas} = req.params;
+  //const nas = users[req.headers.nas];
+  //const nas = req.body;
+  console.log("nas transf: "+ nas)
+  if (!username) {
+    res.status(401).send('Invalid token');
+    return;
+  }
+
+  // Query to get all infos about reservations for client
+  const reservationClientQuery = `
+    SELECT reserve.idReservation, reserve.idChambre, reserve.checkInDate, reserve.checkOutDate, chambre.idHotel, hotel.nom
+    FROM reserve JOIN chambre ON reserve.idChambre = chambre.idChambre
+    JOIN hotel ON chambre.idHotel = hotel.idHotel 
+    WHERE NASclient = '${nas}'
+  `;
+
+  // Get the reservations info
+  db.query(reservationClientQuery, [nas], (err, reservationResult) => {
+    if (err) {// || reservationResult.length === 0
+      console.error('Error executing get reservations client query:', err);
+      res.status(500).send('Error fetching reservations client info');
+      return;
+    }
+
+    //const reservations = reservationResult[0];
+    //console.log(reservations)
+    const reservationInfo = reservationResult.map(row => ({
+      idReservation: row.idReservation,
+      idChambre: row.idChambre,
+      nom: row.nom,
+      checkInDate: row.checkInDate,
+      checkOutDate: row.checkOutDate,
+    }));
+    
+    console.log(reservationInfo);
+    res.json(reservationInfo);
+
+
   });
 });
 
