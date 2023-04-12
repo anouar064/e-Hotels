@@ -2217,15 +2217,13 @@ app.get('/randomClient', (req, res) => {
 
 //================ QUESTION 10  ===================
 app.get('/vue1', (req, res) => {
-  let sql = 'CREATE VIEW nombre_chambres_disponibles_par_zone AS SELECT zone, COUNT(*) AS nombre_chambres_disponibles FROM chambre WHERE disponible = 1 GROUP BY ville';
+  let sql = 'CREATE VIEW nombre_chambres_disponibles_par_zone AS SELECT ville, COUNT(*) AS nombre_chambres_disponibles FROM chambre WHERE disponible = 1 GROUP BY ville';
   db.query(sql, (err, result) => {
       if (err) throw err;
       console.log(result);
       res.send('Vue 1 created: Nombre de chambres disponibles par zone');
   });
 });
-// Exemple requete pour utiliser vue1:
-// SELECT * FROM nombre_chambres_disponibles_par_zone;
 
 
 app.get('/vue2', (req, res) => {
@@ -2236,8 +2234,6 @@ app.get('/vue2', (req, res) => {
       res.send('Vue 2 created: Capacité de toutes les chambres d un hôtel spécifique');
   });
 });
-// Exemple requete pour utiliser vue2:
-// SELECT capacite_totale FROM capacite_chambres_hotel_specifique WHERE hotel = 'nom_de_l_hotel';
 
 // Disponibiltes des chambres pour client
 app.get('/chambreinfosForClient/:idhotel', (req, res) => {
