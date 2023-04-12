@@ -112,19 +112,13 @@ rappel/reminder tables
 
 const hotelChains = [
     "Marriott International",
-    "Hilton Worldwide Holdings Inc.",
-    "InterContinental Hotels Group (IHG)",
     "AccorHotels",
-    "Wyndham Hotels & Resorts",
-    "Choice Hotels International",
-    "Best Western International",
+    "Hotel California",
     "Hyatt Hotels Corporation",
-    "Radisson Hotel Group",
     "Motel 6"
 ];
 const hotelJobs = [
     'Réceptionniste',
-    'Groom',
     'Bagagiste',
     'Maître d\'hôtel',
     'Serveur',
@@ -171,10 +165,9 @@ const comodites = [
     "Vue sur le jardin"
   ];
   const roomEtendue = [
-    "Lit supplémentaire",
-    "Canapé-lit",
-    "Lit bébé",
-    "Chaise haute"
+    "Grande",
+    "Moyenne",
+    "Petite",
   ];
   const modesDePaiement = [
     "Virement bancaire",
@@ -203,208 +196,292 @@ db.connect((err) => {
       console.error(`Error connecting to MySQL: ${err.message}`);
       return;
     }
-    console.log('Connected to MySQL database');
+    //console.log('Connected to MySQL database');
   });
 
   function createHotelChains() {
     // Ajouter les chaînes hôtelières à la base de données
-    hotelChains.forEach((chain) => {
+    const promises = hotelChains.map((chain) => {
       const query = `INSERT INTO chainehoteliere (nom, nombrehotel) VALUES (?, ?)`;
       const values = [chain, 0];
   
-      db.query(query, values, (error, result) => {
-        if (error) {
-          console.error('Error inserting hotel chain:', error);
-        } else {
-          console.log(`Inserted hotel chain '${chain}' with ID ${result.insertId}`);
+      return new Promise((resolve, reject) => {
+        db.query(query, values, async (error, result) => {
+          if (error) {
+            console.error('Error inserting hotel chain:', error);
+            reject(error);
+          } else {
+            const bureauPromises = [];
   
-          // Générer des adresses de bureaux aléatoires pour la chaîne hôtelière
-          const numBureaux = Math.floor(Math.random() * 2) + 2; // entre 2 et 3 bureaux par chaîne
-          for (let i = 0; i < numBureaux; i++) {
-            const bureau = faker.address.streetAddress();
-            const ville = faker.address.city();
-            const codePostal = faker.address.zipCode();
-            const email = faker.internet.email();
-            const numeroTel = faker.phone.number();
+            // Générer des adresses de bureaux aléatoires pour la chaîne hôtelière
+            const numBureaux = Math.floor(Math.random() * 2) + 2; // entre 2 et 3 bureaux par chaîne
+            for (let i = 0; i < numBureaux; i++) {
+              const bureau = faker.address.streetAddress();
+              const ville = faker.address.city();
+              const codePostal = faker.address.zipCode();
+              const email = faker.internet.email();
+              const numeroTel = faker.phone.number();
   
-            const bureauQuery = `INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?)`;
-            const bureauValues = [bureau, codePostal, ville, email, numeroTel, result.insertId];
+              const bureauQuery = `INSERT INTO Bureau (rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?)`;
+              const bureauValues = [bureau, codePostal, ville, email, numeroTel, result.insertId];
   
-            db.query(bureauQuery, bureauValues, (error, result) => {
-              if (error) {
-                console.error('Error inserting bureau:', error);
-              } else {
-                console.log(`Inserted bureau with ID ${result.insertId}`);
-              }
-            });
-          }
-        }
-      });
-    });
-  }
-  function createHotels() {
-    // Sélectionner toutes les chaînes hôtelières de la base de données
-    const query = `SELECT * FROM chainehoteliere`;
-  
-    db.query(query, (error, results) => {
-      if (error) {
-        console.error('Error selecting hotel chains:', error);
-      } else {
-        results.forEach((chain) => {
-          // Générer un nombre aléatoire d'hôtels pour la chaîne hôtelière
-          const numHotels = Math.floor(Math.random() * 15) + 6; // entre 6 et 20 hôtels par chaîne
-  
-          for (let i = 0; i < numHotels; i++) {
-            const nomHotel = faker.company.companyName();
-            const classement = Math.floor(Math.random() * 6);
-            const nombreChambres = Math.floor(Math.random() * 41) + 80; // entre 80 et 120 chambres par hôtel
-            const rue = faker.address.streetAddress();
-            const codePostal = faker.address.zipCode();
-            const ville = faker.address.city();
-            const email = faker.internet.email();
-            const numeroTel = faker.phone.phoneNumber();
-  
-            const hotelQuery = `INSERT INTO hotel (nom, classement, nombrechambres, rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            const hotelValues = [nomHotel, classement, nombreChambres, rue, codePostal, ville, email, numeroTel, chain.idchaine];
-  
-            db.query(hotelQuery, hotelValues, (error, result) => {
-              if (error) {
-                console.error('Error inserting hotel:', error);
-              } else {
-                console.log(`Inserted hotel '${nomHotel}' with ID ${result.insertId}`);
-              }
-            });
-          }
-        });
-      }
-    });
-  } 
-  function addRooms() {
-    // Sélectionner tous les hôtels de la base de données
-    const query = `SELECT * FROM hotel`;
-  
-    db.query(query, (error, results) => {
-      if (error) {
-        console.error('Error selecting hotels:', error);
-      } else {
-        results.forEach((hotel) => {
-          // Générer un nombre aléatoire de chambres pour l'hôtel
-          const numChambres = Math.floor(Math.random() * 80) + 41; // entre 41 et 120 chambres par hôtel
-  
-          for (let i = 0; i < numChambres; i++) {
-            const prix = Math.floor(Math.random() * 201) + 50; // entre 50 et 250$ par nuit
-            const capacite = Math.floor(Math.random() * 5) + 1; // entre 1 et 5 personnes
-            const disponible = Math.random() < 0.8; // 80% de chance d'être disponible
-            const vue = roomViews[Math.floor(Math.random() * roomViews.length)]; // une vue aléatoire
-            const etendue = roomEtendue[Math.floor(Math.random() * roomEtendue.length)]; // une étendue aléatoire
-            const probleme = Math.random() < 0.1; // 10% de chance d'avoir un problème
-            
-            const chambreQuery = `INSERT INTO chambre (prix, capaciteChambre, disponible, vue, etendue, problemechambre, idHotel) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-            const chambreValues = [prix, capacite, disponible, vue, etendue, probleme, hotel.idhotel];
-  
-            db.query(chambreQuery, chambreValues, (error, result) => {
-              if (error) {
-                console.error('Error inserting chambre:', error);
-              } else {
-                console.log(`Inserted chambre with ID ${result.insertId}`);
-  
-                // Ajouter des commodités aléatoires pour la chambre
-                const numComodites = Math.floor(Math.random() * 6) + 1; // entre 1 et 6 commodités par chambre
-  
-                for (let j = 0; j < numComodites; j++) {
-                  const comodite = comodites[Math.floor(Math.random() * comodites.length)];
-  
-                  const comoditeQuery = `INSERT INTO commodite (nom, idchambre) VALUES (?, ?)`;
-                  const comoditeValues = [comodite, result.insertId];
-  
-                  db.query(comoditeQuery, comoditeValues, (error, result) => {
-                    if (error) {
-                      console.error('Error inserting commodite:', error);
-                    } else {
-                      console.log(`Inserted commodite with ID ${result.insertId}`);
-                    }
-                  });
-                }
-              }
-            });
-          }
-        });
-      }
-    });
-  }
-  function createEmployees() {
-    // Sélectionner tous les hôtels de la base de données
-    const query = `SELECT * FROM hotel`;
-  
-    db.query(query, (error, results) => {
-      if (error) {
-        console.error('Error selecting hotels:', error);
-      } else {
-        results.forEach((hotel) => {
-          // Générer un nombre aléatoire d'employés pour l'hôtel
-          const numEmployees = Math.floor(Math.random() * 6) + 5; // entre 5 et 10 employés par hôtel
-  
-          for (let i = 0; i < numEmployees; i++) {
-            const firstName = faker.name.firstName();
-            const lastName = faker.name.lastName();
-            const streetAddress = faker.address.streetAddress();
-            const postalCode = faker.address.zipCode();
-            const city = faker.address.city();
-            const username = faker.internet.userName();
-            const password = faker.internet.password();
-            const role = hotelJobs[Math.floor(Math.random() * hotelJobs.length)];
-  
-            const employeeQuery = `INSERT INTO employe (NASemploye, prenom, nomFamille, rue, codePostal, ville, username, password, idhotel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            const employeeValues = [faker.random.alphaNumeric(11), firstName, lastName, streetAddress, postalCode, city, username, password, hotel.idhotel];
-  
-            db.query(employeeQuery, employeeValues, (error, result) => {
-              if (error) {
-                console.error('Error inserting employee:', error);
-              } else {
-                console.log(`Inserted employee with NAS ${employeeValues[0]}`);
-  
-                // Créer un rôle pour cet employé
-                const salary = Math.floor(Math.random() * 5001) + 500; // salaire entre 500$ et 5500$ par mois
-                const roleQuery = `INSERT INTO role (nom, salaireDebut, idhotel, NASemploye) VALUES (?, ?, ?, ?)`;
-                const roleValues = [role, salary, hotel.idhotel, employeeValues[0]];
-  
-                db.query(roleQuery, roleValues, (error, result) => {
+              const bureauPromise = new Promise((resolve, reject) => {
+                db.query(bureauQuery, bureauValues, (error, result) => {
                   if (error) {
-                    console.error('Error inserting role:', error);
+                    console.error('Error inserting bureau:', error);
+                    reject(error);
                   } else {
-                    console.log(`Inserted role with ID ${result.insertId}`);
+                    resolve();
                   }
                 });
-              }
-            });
+              });
+  
+              bureauPromises.push(bureauPromise);
+            }
+  
+            await Promise.all(bureauPromises);
+            resolve();
           }
         });
-      }
+      });
     });
+  
+    return Promise.all(promises);
   }
-  function addClients() {
-    for (let i = 0; i < 15000; i++) {
-      const firstName = faker.name.firstName();
-      const lastName = faker.name.lastName();
-      const streetAddress = faker.address.streetAddress();
-      const postalCode = faker.address.zipCode();
-      const city = faker.address.city();
-      const username = faker.internet.userName();
-      const password = faker.internet.password();
-      const dateEnregistrement = faker.date.past();
   
-      const clientQuery = `INSERT INTO client (NASclient, prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      const clientValues = [faker.random.numeric(11), firstName, lastName, streetAddress, postalCode, city, dateEnregistrement, username, password];
+  function createHotels() {
+    const query = `SELECT * FROM chainehoteliere`;
   
-      db.query(clientQuery, clientValues, (error, result) => {
+    return new Promise((resolve, reject) => {
+      db.query(query, async (error, results) => {
         if (error) {
-          console.error('Error inserting client:', error);
+          console.error('Error selecting hotel chains:', error);
+          reject(error);
         } else {
-          console.log(`Inserted client with NAS ${clientValues[0]}`);
+          const hotelPromises = results.map((chain) => {
+            // Générer un nombre aléatoire d'hôtels pour la chaîne hôtelière
+            const numHotels = Math.floor(Math.random() * 15) + 6; // entre 6 et 20 hôtels par chaîne
+  
+            const chainPromises = [];
+  
+            for (let i = 0; i < numHotels; i++) {
+              const nomHotel = faker.company.name();
+              const classement = Math.floor(Math.random() * 6);
+              const nombreChambres = Math.floor(Math.random() * 41) + 80; // entre 80 et 120 chambres par hôtel
+              const rue = faker.address.streetAddress();
+              const codePostal = faker.address.zipCode();
+              const ville = faker.address.city();
+              const email = faker.internet.email();
+              const numeroTel = faker.phone.number();
+  
+              const hotelQuery = `INSERT INTO hotel (nom, classement, nombrechambres, rue, codePostal, ville, email, numeroTel, idchaine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+              const hotelValues = [nomHotel, classement, nombreChambres, rue, codePostal, ville, email, numeroTel, chain.idchaine];
+  
+              const hotelPromise = new Promise((resolve, reject) => {
+                db.query(hotelQuery, hotelValues, (error, result) => {
+                  if (error) {
+                    console.error('Error inserting hotel:', error);
+                    reject(error);
+                  } else {
+                    resolve();
+                  }
+                });
+              });
+  
+              chainPromises.push(hotelPromise);
+            }
+  
+            return Promise.all(chainPromises);
+          });
+  
+          await Promise.all(hotelPromises);
+          resolve();
         }
       });
-    }
+    });
   }
+  
+
+
+  function addRooms() {
+    const query = `SELECT * FROM hotel`;
+  
+    return new Promise((resolve, reject) => {
+      db.query(query, async (error, results) => {
+        if (error) {
+          console.error('Error selecting hotels:', error);
+          reject(error);
+        } else {
+          const roomPromises = results.map((hotel) => {
+            const numChambres = Math.floor(Math.random() * 50) + 41; // entre 41 et 120 chambres par hôtel
+  
+            const hotelPromises = [];
+  
+            for (let i = 0; i < numChambres; i++) {
+              const prix = Math.floor(Math.random() * 1451) + 50; // entre 50 et 1500$
+              const capacite = Math.floor(Math.random() * 5) + 1; // entre 1 et 5 personnes
+              const disponible = Math.random() < 0.7; // 80% de chance d'être disponible
+              const vue = roomViews[Math.floor(Math.random() * roomViews.length)]; // une vue aléatoire
+              const etendue = roomEtendue[Math.floor(Math.random() * roomEtendue.length)]; // une étendue aléatoire
+              const probleme = Math.random() < 0.1; // 10% de chance d'avoir un problème
+  
+              const chambreQuery = `INSERT INTO chambre (prix, capaciteChambre, disponible, vue, etendue, problemechambre, idHotel) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+              const chambreValues = [prix, capacite, disponible, vue, etendue, probleme, hotel.idhotel];
+  
+              const roomPromise = new Promise((resolve, reject) => {
+                db.query(chambreQuery, chambreValues, (error, result) => {
+                  if (error) {
+                    console.error('Error inserting chambre:', error);
+                    reject(error);
+                  } else {
+                    const numComodites =3; // entre 1 et 6 commodités par chambre
+  
+                    const comoditePromises = [];
+  
+                    for (let j = 0; j < numComodites; j++) {
+                      const comodite = comodites[Math.floor(Math.random() * comodites.length)];
+  
+                      const comoditeQuery = `INSERT INTO commodite (nom, idchambre) VALUES (?, ?)`;
+                      const comoditeValues = [comodite, result.insertId];
+  
+                      const comoditePromise = new Promise((resolve, reject) => {
+                        db.query(comoditeQuery, comoditeValues, (error, result) => {
+                          if (error) {
+                            console.error('Error inserting commodite:', error);
+                            reject(error);
+                          } else {
+                            resolve();
+                          }
+                        });
+                      });
+  
+                      comoditePromises.push(comoditePromise);
+                    }
+  
+                    Promise.all(comoditePromises).then(() => resolve()).catch((error) => reject(error));
+                  }
+                });
+              });
+  
+              hotelPromises.push(roomPromise);
+            }
+  
+            return Promise.all(hotelPromises);
+          });
+  
+          await Promise.all(roomPromises);
+          resolve();
+        }
+      });
+    });
+  }
+  
+  
+  function createEmployees() {
+    const query = `SELECT * FROM hotel`;
+  
+    return new Promise((resolve, reject) => {
+      db.query(query, async (error, results) => {
+        if (error) {
+          console.error('Error selecting hotels:', error);
+          reject(error);
+        } else {
+          const employeePromises = results.map((hotel) => {
+            const numEmployees = Math.floor(Math.random() * 6) + 5; // entre 5 et 10 employés par hôtel
+  
+            const hotelPromises = [];
+  
+            for (let i = 0; i < numEmployees; i++) {
+              const firstName = faker.name.firstName();
+              const lastName = faker.name.lastName();
+              const streetAddress = faker.address.streetAddress();
+              const postalCode = faker.address.zipCode();
+              const city = faker.address.city();
+              const uniqueSuffix = faker.random.alphaNumeric(3);
+  
+              const username = faker.internet.userName() + uniqueSuffix;
+              const password = faker.internet.password();
+              const role = hotelJobs[Math.floor(Math.random() * hotelJobs.length)];
+  
+              const employeeQuery = `INSERT INTO employe (NASemploye, prenom, nomFamille, rue, codePostal, ville, username, password, idhotel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+              const employeeValues = [faker.random.alphaNumeric(11), firstName, lastName, streetAddress, postalCode, city, username, password, hotel.idhotel];
+  
+              const employeePromise = new Promise((resolve, reject) => {
+                db.query(employeeQuery, employeeValues, (error, result) => {
+                  if (error) {
+                    console.error('Error inserting employee:', error);
+                    reject(error);
+                  } else {
+                    const salary = Math.floor(Math.random() * 5001) + 500; // salaire entre 500$ et 5500$ par mois
+                    const roleQuery = `INSERT INTO role (nom, salaireDebut, idhotel, NASemploye) VALUES (?, ?, ?, ?)`;
+                    const roleValues = [role, salary, hotel.idhotel, employeeValues[0]];
+  
+                    db.query(roleQuery, roleValues, (error, result) => {
+                      if (error) {
+                        console.error('Error inserting role:', error);
+                        reject(error);
+                      } else {
+                        resolve();
+                      }
+                    });
+                  }
+                });
+              });
+  
+              hotelPromises.push(employeePromise);
+            }
+  
+            return Promise.all(hotelPromises);
+          });
+  
+          await Promise.all(employeePromises);
+          resolve();
+        }
+      });
+    });
+  }
+  
+  
+  function addClients() {
+    return new Promise((resolve, reject) => {
+      const clientPromises = [];
+  
+      for (let i = 0; i < 4000; i++) {
+        const firstName = faker.name.firstName();
+        const lastName = faker.name.lastName();
+        const streetAddress = faker.address.streetAddress();
+        const postalCode = faker.address.zipCode();
+        const city = faker.address.city();
+        const username = faker.internet.userName();
+        const password = faker.internet.password();
+        const dateEnregistrement = faker.date.past();
+    
+        const clientQuery = `INSERT INTO client (NASclient, prenom, nomFamille, rue, codePostal, ville, dateEnregistrement, username, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        const clientValues = [faker.random.numeric(11), firstName, lastName, streetAddress, postalCode, city, dateEnregistrement, username, password];
+      
+        const clientPromise = new Promise((resolve, reject) => {
+          db.query(clientQuery, clientValues, (error, result) => {
+            if (error) {
+              console.error('Error inserting client:', error);
+              reject(error);
+            } else {
+              resolve();
+            }
+          });
+        });
+  
+        clientPromises.push(clientPromise);
+      }
+  
+      Promise.all(clientPromises)
+        .then(() => resolve())
+        .catch((error) => reject(error));
+    });
+  }
+  
+
+
+
   function populateLocation() {
     const expiredReservationsQuery = `
       SELECT *
@@ -477,138 +554,121 @@ db.connect((err) => {
       });
     });
   }
+  
   function populateReservations() {
-    const hotelQuery = `SELECT idhotel FROM hotel`;
+    return new Promise((resolve, reject) => {
+      const hotelQuery = `SELECT idhotel FROM hotel`;
   
-    db.query(hotelQuery, [], (error, hotels) => {
-      if (error) {
-        console.error('Error selecting hotels:', error);
-        return;
-      }
+      db.query(hotelQuery, [], async (error, hotels) => {
+        if (error) {
+          console.error('Error selecting hotels:', error);
+          reject(error);
+          return;
+        }
   
-      hotels.forEach((hotel) => {
-        const hotelId = hotel.idhotel;
-        const roomQuery = `SELECT idChambre FROM chambre WHERE idHotel = ? ORDER BY RAND() LIMIT 20`;
+        const hotelPromises = hotels.map(async (hotel) => {
+          const hotelId = hotel.idhotel;
+          const roomQuery = `SELECT idChambre FROM chambre WHERE idHotel = ? ORDER BY RAND() LIMIT 20`;
   
-        db.query(roomQuery, [hotelId], (error, rooms) => {
-          if (error) {
-            console.error('Error selecting rooms:', error);
-            return;
-          }
+          return new Promise((resolve, reject) => {
+            db.query(roomQuery, [hotelId], (error, rooms) => {
+              if (error) {
+                console.error('Error selecting rooms:', error);
+                reject(error);
+                return;
+              }
   
-          const clientQuery = `SELECT NASclient FROM client ORDER BY RAND() LIMIT 20`;
-  
-          db.query(clientQuery, [], (error, clients) => {
-            if (error) {
-              console.error('Error selecting clients:', error);
-              return;
-            }
-  
-            for (let i = 0; i < rooms.length; i++) {
-              const room = rooms[i];
-              const client = clients[i];
-  
-              const checkInDate = faker.date.between('2014-01-01', '2024-12-31').toISOString().slice(0, 10);
-              const checkOutDate = faker.date.between(checkInDate, new Date(checkInDate).setDate(new Date(checkInDate).getDate() + 15)).toISOString().slice(0, 10);
-  
-              const reservationQuery = `INSERT INTO reserve (idChambre, NASclient, checkInDate, checkOutDate) VALUES (?, ?, ?, ?)`;
-              const reservationValues = [room.idChambre, client.NASclient, checkInDate, checkOutDate];
-  
-              db.query(reservationQuery, reservationValues, (error, result) => {
+              const clientQuery = `SELECT NASclient FROM client ORDER BY RAND() LIMIT 20`;
+              db.query(clientQuery, [], (error, clients) => {
                 if (error) {
-                  console.error('Error inserting reservation:', error);
-                } else {
-                  console.log(`Inserted reservation with ID ${result.insertId}`);
+                  console.error('Error selecting clients:', error);
+                  reject(error);
+                  return;
                 }
+
+                const reservationPromises = rooms.map((room, i) => {
+                  const client = clients[i];
+  
+                  const checkInDate = faker.date.between('2014-01-01', '2024-12-31').toISOString().slice(0, 10);
+                  const checkOutDate = faker.date.between(checkInDate, new Date(checkInDate).setDate(new Date(checkInDate).getDate() + 15)).toISOString().slice(0, 10);
+  
+                  const reservationQuery = `INSERT INTO reserve (idChambre, NASclient, checkInDate, checkOutDate) VALUES (?, ?, ?, ?)`;
+                  const reservationValues = [room.idChambre, client.NASclient, checkInDate, checkOutDate];
+  
+                  return new Promise((resolve, reject) => {
+
+                    db.query(reservationQuery, reservationValues, (error, result) => {
+                      if (error) {
+                        console.error('Error inserting reservation:', error);
+                        reject(error);
+                      } else {
+                        resolve();
+                      }
+                    });
+                  });
+                });
+  
+                Promise.all(reservationPromises)
+                  .then(() => resolve())
+                  .catch((error) => reject(error));
               });
-            }
+            });
           });
         });
+  
+        try {
+          await Promise.all(hotelPromises);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
       });
     });
   }
   
+  async function runSeeder() {
+    try {
+      await createHotelChains();
+      console.log('Hotel chains created.');
   
-  // Function to count hotels for each chain and update the count in the database
-function updateChainHotelCount() {
-    const query = `
-      SELECT chainehoteliere.idchaine, COUNT(hotel.idhotel) AS hotelCount
-      FROM chainehoteliere
-      LEFT JOIN hotel ON chainehoteliere.idchaine = hotel.idchaine
-      GROUP BY chainehoteliere.idchaine
-    `;
-    
-    db.query(query, (error, results) => {
-      if (error) {
-        console.error('Error counting hotels for chains:', error);
-      } else {
-        results.forEach((result) => {
-          const chainId = result.idchaine;
-          const hotelCount = result.hotelCount;
-          
-          const updateQuery = `
-            UPDATE chainehoteliere
-            SET nombrehotel = ?
-            WHERE idchaine = ?
-          `;
-          
-          const updateValues = [hotelCount, chainId];
-          
-          db.query(updateQuery, updateValues, (error, result) => {
-            if (error) {
-              console.error(`Error updating hotel count for chain ID ${chainId}:`, error);
-            } else {
-              console.log(`Updated hotel count for chain ID ${chainId} to ${hotelCount}`);
-            }
-          });
-        });
-      }
-    });
+      await createHotels();
+      console.log('Hotels created.');
+      console.log('Creation de Rooms... ( peut prendre du temps 1-2min...) ');
+  
+      await addRooms();
+      console.log('Rooms added.');
+  
+      await createEmployees();
+      console.log('Employees created.');
+  
+      await addClients();
+      console.log('Clients added.');
+  
+      
+  
+       await populateReservations();
+       console.log('Reservations populated.');
+  
+      console.log('Database seeding completed.');
+    } catch (error) {
+      console.error('Error during database seeding:', error);
+    } finally {
+      db.end(); // Close the database connection
+    }
   }
-  
-  // Function to count rooms for each hotel and update the count in the database
-function updateHotelRoomCount() {
-    const query = `
-      SELECT hotel.idhotel, COUNT(chambre.idChambre) AS roomCount
-      FROM hotel
-      LEFT JOIN chambre ON hotel.idhotel = chambre.idHotel
-      GROUP BY hotel.idhotel
-    `;
-    
-    db.query(query, (error, results) => {
-      if (error) {
-        console.error('Error counting rooms for hotels:', error);
-      } else {
-        results.forEach((result) => {
-          const hotelId = result.idhotel;
-          const roomCount = result.roomCount;
-          
-          const updateQuery = `
-            UPDATE hotel
-            SET nombrechambres = ?
-            WHERE idhotel = ?
-          `;
-          
-          const updateValues = [roomCount, hotelId];
-          
-          db.query(updateQuery, updateValues, (error, result) => {
-            if (error) {
-              console.error(`Error updating room count for hotel ID ${hotelId}:`, error);
-            } else {
-              console.log(`Updated room count for hotel ID ${hotelId} to ${roomCount}`);
-            }
-          });
-        });
-      }
-    });
-  }
-  
-  
-//createHotelChains()
-//createHotels()
-//addRooms()
-//createEmployees()
-//addClients()
-//populateReservations();
-populateLocation();
 
+  //Lancer le script en 2 etapes : 
+
+
+//-------------------------
+  //Etape I
+  //Creation de Chaine-Hotel-Chambre-commodite-employe-client-reservation
+//-------------------------
+    
+  //runSeeder();
+//-------------------------
+  //Etape II
+  //Creation Location
+//-------------------------
+  
+  populateLocation();
